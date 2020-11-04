@@ -64,10 +64,22 @@ class Plugin(indigo.PluginBase):
 
 
     def checkSensors(self, device):
-        self.logger.debug(u"{}: checkSensors, sensors: {}".format(device.name, self.ZoneList[device.id]))
+                
+        onSensorsOnOff = device.pluginProps.get("onSensorsOnOff","on")
+        if onSensorsOnOff == 'on':
+            onStateList = [indigo.devices[x].onState for x in self.ZoneList[device.id]]
+        else:
+            onStateList = [not indigo.devices[x].onState for x in self.ZoneList[device.id]]
         
+        onAnyAll = device.pluginProps.get("onAnyAll","all")
+        if onAnyAll == 'all':
+            value = all(onStateList)
+        else:
+            value = any(onStateList)
+        
+        self.logger.debug(u"{}: checkSensors, onSensorsOnOff = {}, onSensorsOnOff = {}, sensors: {}".format(device.name, onSensorsOnOff, onSensorsOnOff, self.ZoneList[device.id]))
 
-        device.updateStateOnServer(key='onOffState', value=False)
+        device.updateStateOnServer(key='onOffState', value=value)
         
     
     ########################################
@@ -104,7 +116,7 @@ class Plugin(indigo.PluginBase):
 
     def deviceUpdated(self, oldDevice, newDevice):
         indigo.PluginBase.deviceUpdated(self, oldDevice, newDevice)
-        if newDevice.id in self.watchList:
+        if newDevice.id in self.watchList and oldDevice.onState != newDevice.onState:   # only care about onState changes
             self.logger.debug(u"Watched Device updated: {}".format(newDevice.name))
             for zone in self.watchList[newDevice.id]:
                 self.checkSensors(indigo.devices[zone])

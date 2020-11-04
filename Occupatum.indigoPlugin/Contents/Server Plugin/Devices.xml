@@ -43,7 +43,7 @@
                 <CallbackMethod>deleteDevices</CallbackMethod>
             </Field>
             
-            <!--  This section for selecting sensors used for this zone  -->
+            <!--  This section for specifying the logic for this zone  -->
 
             <Field id="onAnyAll" type="menu" defaultValue="any" visibleBindingId="section" visibleBindingValue="logic">
                 <Label>This zone is occupied (On) when:</Label>
@@ -60,13 +60,14 @@
         		</List>
         	</Field>
             <Field id="logicSpace1" type="label" visibleBindingId="section" visibleBindingValue="logic"><Label/></Field>
+<!-->
             <Field id="onDelayValue" type="textfield" defaultValue="0" visibleBindingId="section" visibleBindingValue="logic">
                 <Label>Delay On by (Seconds):</Label>
         	</Field>
             <Field id="offDelayValue" type="textfield" defaultValue="0" visibleBindingId="section" visibleBindingValue="logic">
                 <Label>Delay Off by (Seconds):</Label>
         	</Field>
-            
+-->    
        </ConfigUI>
     </Device>
 </Devices>

@@ -26,43 +26,48 @@ class Plugin(indigo.PluginBase):
 
 
     def startup(self):
-        self.logger.info(u"Starting Where Am I")
+        self.logger.info(u"Starting Occupatum")
         
-        self.areaList = {}
+        self.ZoneList = {}
         self.watchList = {}
         
         indigo.devices.subscribeToChanges()
 
     def shutdown(self):
-        self.logger.info(u"Shutting down Where Am I")
+        self.logger.info(u"Stopping Occupatum")
 
 
     def deviceStartComm(self, device):
         self.logger.info(u"{}: Starting Device".format(device.name))
 
-        devicesInArea = device.pluginProps.get("sensorDevices","").split(",")
-        self.logger.debug(u"{}: sensor devices: {}".format(device.name, devicesInArea))
+        sensorsInZone = [int(x) for x in device.pluginProps.get("sensorDevices","").split(",")]
+        self.logger.debug(u"{}: Zone {} uses sensor devices: {}".format(device.name, device.id, sensorsInZone))
 
-        for sensor in devicesInArea:
-            self.watchList[sensor] = device.id
-        self.logger.debug(u"{}: watchList: {}".format(device.name, self.watchList))
-
-        device.updateStateOnServer(key='onOffState', value=self.checkSensors(device))
+        for sensor in sensorsInZone:
+            if sensor not in self.watchList:
+                self.watchList[sensor] = list()
+            self.watchList[sensor].append(device.id)
+                
+        self.logger.debug(u"{}: watchList updated: {}".format(device.name, self.watchList))
         
-        assert device.id not in self.areaList
-        self.areaList[device.id] = devicesInArea
-
+        assert device.id not in self.ZoneList
+        self.ZoneList[device.id] = sensorsInZone
+        
+        # update the state
+        self.checkSensors(device)
 
     def deviceStopComm(self, device):
         self.logger.info(u"{}: Stopping Device".format(device.name))
 
-        assert device.id in self.areaList
-        del self.areaList[device.id]
+        assert device.id in self.ZoneList
+        del self.ZoneList[device.id]
 
 
     def checkSensors(self, device):
+        self.logger.debug(u"{}: checkSensors, sensors: {}".format(device.name, self.ZoneList[device.id]))
         
-        return False
+
+        device.updateStateOnServer(key='onOffState', value=False)
         
     
     ########################################
@@ -93,14 +98,16 @@ class Plugin(indigo.PluginBase):
 
     def deviceDeleted(self, delDevice):
         indigo.PluginBase.deviceDeleted(self, delDevice)
-        if unicode(delDevice.id) in self.watchList:
+        if delDevice.id in self.watchList:
             self.logger.debug(u"Watched Device deleted: {}".format(delDevice.name))
+            
 
     def deviceUpdated(self, oldDevice, newDevice):
         indigo.PluginBase.deviceUpdated(self, oldDevice, newDevice)
-        if unicode(newDevice.id) in self.watchList:
+        if newDevice.id in self.watchList:
             self.logger.debug(u"Watched Device updated: {}".format(newDevice.name))
-        
+            for zone in self.watchList[newDevice.id]:
+                self.checkSensors(indigo.devices[zone])
 
     ################################################################################
     #
@@ -162,14 +169,14 @@ class Plugin(indigo.PluginBase):
         self.logger.debug(u"deleteDevices called, devId={}, typeId={}, valuesDict = {}".format(devId, typeId, valuesDict))
         
         if "sensorDevices" in valuesDict:
-            devicesInArea = valuesDict.get("sensorDevices","").split(",")
+            devicesInZone = valuesDict.get("sensorDevices","").split(",")
             selectedDevices = valuesDict.get("sensorDeviceList", [])
 
             for deviceId in selectedDevices:
                 self.logger.debug(u"remove deviceId: {}".format(deviceId))
-                if deviceId in devicesInArea:
-                    devicesInArea.remove(deviceId)
-            valuesDict["sensorDevices"] = ",".join(devicesInArea)
+                if deviceId in devicesInZone:
+                    devicesInZone.remove(deviceId)
+            valuesDict["sensorDevices"] = ",".join(devicesInZone)
 
             if "sensorDeviceList" in valuesDict:
                 del valuesDict["sensorDeviceList"]

@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<Devices>
+    <Device type="sensor" id="area">
+        <Name>Occupancy Zone</Name>
+        <ConfigUI>            
+			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
+			<Field id="SupportsSensorValue" type="checkbox" defaultValue="false" hidden="true" />
+            <Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
+			<Field id="sensorDevices" type="textfield" hidden="true"/>
+			
+            <Field id="section" type="menu" defaultValue="sensors">
+                <Label>Section:</Label>
+        		<List>
+        			<Option value="sensors">Sensors</Option>
+        			<Option value="logic">Logic</Option>
+
+        		</List>
+        	</Field>
+            <Field id="section_separator1" type="separator"/>
+
+            <!--  This section for selecting sensors used for this zone  -->
+
+            <Field id="sensorDeviceMenu" type="menu" visibleBindingId="section" visibleBindingValue="sensors" alwaysUseInDialogHeightCalc="true">
+	            <Label>Sensor Device to Add:</Label>
+	            <List class="self" method="sensorDevices" dynamicReload="true"/>
+            </Field>
+            <Field id="addDevice" type="button" visibleBindingId="section" visibleBindingValue="sensors" alwaysUseInDialogHeightCalc="true">
+                <Label/>
+                <Title>Add Device</Title>
+                <CallbackMethod>addDevice</CallbackMethod>
+            </Field>
+            <Field id="sensorListLabel" type="label" fontColor="darkgray" visibleBindingId="section" visibleBindingValue="sensors" alwaysUseInDialogHeightCalc="true">
+                <Label>This is the list of sensor devices included in this zone.</Label>
+            </Field>
+			<Field id="sep1" type="separator" visibleBindingId="section" visibleBindingValue="sensors"/>
+            <Field id="sensorDeviceList" type="list" rows="15" visibleBindingId="section" visibleBindingValue="sensors" alwaysUseInDialogHeightCalc="true">
+                <Label>Included sensors:</Label>
+                <List class="self" method="sensorDeviceList" dynamicReload="true"/>
+            </Field>
+            <Field id="deleteDevices" type="button" visibleBindingId="section" visibleBindingValue="sensors" alwaysUseInDialogHeightCalc="true">
+                <Label/>
+                <Title>Delete Devices</Title>
+                <CallbackMethod>deleteDevices</CallbackMethod>
+            </Field>
+            
+            <!--  This section for selecting sensors used for this zone  -->
+
+            <Field id="onAnyAll" type="menu" defaultValue="any" visibleBindingId="section" visibleBindingValue="logic">
+                <Label>This zone is occupied (On) when:</Label>
+        		<List>
+        			<Option value="all">All</Option>
+        			<Option value="any">Any</Option>
+        		</List>
+        	</Field>
+            <Field id="onSensorsOnOff" type="menu" defaultValue="on" visibleBindingId="section" visibleBindingValue="logic">
+                <Label>sensors are:</Label>
+        		<List>
+        			<Option value="on">On</Option>
+        			<Option value="off">Off</Option>
+        		</List>
+        	</Field>
+            <Field id="logicSpace1" type="label" visibleBindingId="section" visibleBindingValue="logic"><Label/></Field>
+            <Field id="onDelayValue" type="textfield" defaultValue="0" visibleBindingId="section" visibleBindingValue="logic">
+                <Label>Delay On by (Seconds):</Label>
+        	</Field>
+            <Field id="offDelayValue" type="textfield" defaultValue="0" visibleBindingId="section" visibleBindingValue="logic">
+                <Label>Delay Off by (Seconds):</Label>
+        	</Field>
+            
+       </ConfigUI>
+    </Device>
+</Devices>
+ 

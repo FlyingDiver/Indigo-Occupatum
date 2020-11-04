@@ -9,11 +9,11 @@
     <key>IwsApiVersion</key>
     <string>1.0.0</string>
     <key>CFBundleName</key>
-    <string>Where-Am-I</string>
+    <string>Occupatum</string>
     <key>CFBundleDisplayName</key>
-    <string>Where Am I</string>
+    <string>Occupatum</string>
     <key>CFBundleIdentifier</key>
-    <string>com.flyingdiver.indigoplugin.whereami</string>
+    <string>com.flyingdiver.indigoplugin.occupatum</string>
     <key>CFBundleVersion</key>
     <string>1.0.0</string>
     <key>CFBundleURLTypes</key>

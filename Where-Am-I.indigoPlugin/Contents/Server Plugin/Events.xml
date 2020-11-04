@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<Events>
+    <SupportURL>http://forums.indigodomo.com/viewtopic.php?f=316</SupportURL>
+
+    <Event id="deviceUpdated">
+        <Name>Device Updated</Name>
+		<ConfigUI>
+        	<Field id="shimDevice" type="menu">
+            	<Label>Shim Device:</Label>
+            	<List class="indigo.devices" filter="self" />
+			</Field>
+		</ConfigUI>
+    </Event>
+    <Event id="stateUpdated">
+        <Name>Device Updated and State Present</Name>
+		<ConfigUI>
+        	<Field id="shimDevice" type="menu">
+            	<Label>Shim Device:</Label>
+            	<List class="indigo.devices" filter="self" />
+			</Field>
+        	<Field id="deviceState" type="textfield">
+            	<Label>Device state:</Label>
+			</Field>
+		</ConfigUI>
+    </Event>
+
+</Events>

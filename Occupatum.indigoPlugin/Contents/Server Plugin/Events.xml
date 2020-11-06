@@ -1,3 +1,21 @@
 <?xml version="1.0"?>
 <Events>
+	<Event id="zoneOccupied">
+        <Name>Zone becomes Occupied</Name>
+ 		<ConfigUI>
+        	<Field id="zoneDevice" type="menu">
+            	<Label>Zone:</Label>
+            	<List class="indigo.devices" filter="self" />
+			</Field>
+ 		</ConfigUI>
+	</Event>
+	<Event id="zoneUnoccupied">
+        <Name>Zone becomes Unoccupied</Name>
+ 		<ConfigUI>
+        	<Field id="zoneDevice" type="menu">
+            	<Label>Zone:</Label>
+            	<List class="indigo.devices" filter="self" />
+			</Field>
+ 		</ConfigUI>
+	</Event>
 </Events>

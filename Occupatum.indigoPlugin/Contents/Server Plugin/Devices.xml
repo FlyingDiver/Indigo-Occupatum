@@ -8,67 +8,65 @@
             <Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
 			<Field id="sensorDevices" type="textfield" hidden="true"/>
 			
-            <Field id="section" type="menu" defaultValue="sensors">
-                <Label>Section:</Label>
-        		<List>
-        			<Option value="sensors">Sensors</Option>
-        			<Option value="logic">Logic</Option>
-
-        		</List>
-        	</Field>
-            <Field id="section_separator1" type="separator"/>
-
-            <!--  This section for selecting sensors used for this zone  -->
-
-            <Field id="sensorDeviceMenu" type="menu" visibleBindingId="section" visibleBindingValue="sensors" alwaysUseInDialogHeightCalc="true">
+            <Field id="sensorDeviceMenu" type="menu">
 	            <Label>Sensor Device to Add:</Label>
 	            <List class="self" method="sensorDevices" dynamicReload="true"/>
             </Field>
-            <Field id="addDevice" type="button" visibleBindingId="section" visibleBindingValue="sensors" alwaysUseInDialogHeightCalc="true">
+            <Field id="addDevice" type="button">
                 <Label/>
                 <Title>Add Device</Title>
                 <CallbackMethod>addDevice</CallbackMethod>
             </Field>
-            <Field id="sensorListLabel" type="label" fontColor="darkgray" visibleBindingId="section" visibleBindingValue="sensors" alwaysUseInDialogHeightCalc="true">
-                <Label>This is the list of sensor devices included in this zone.</Label>
-            </Field>
-			<Field id="sep1" type="separator" visibleBindingId="section" visibleBindingValue="sensors"/>
-            <Field id="sensorDeviceList" type="list" rows="15" visibleBindingId="section" visibleBindingValue="sensors" alwaysUseInDialogHeightCalc="true">
+            <Field id="space1" type="label"><Label/></Field>
+            <Field id="sensorDeviceList" type="list" rows="6">
                 <Label>Included sensors:</Label>
                 <List class="self" method="sensorDeviceList" dynamicReload="true"/>
             </Field>
-            <Field id="deleteDevices" type="button" visibleBindingId="section" visibleBindingValue="sensors" alwaysUseInDialogHeightCalc="true">
+            <Field id="deleteDevices" type="button">
                 <Label/>
                 <Title>Delete Devices</Title>
                 <CallbackMethod>deleteDevices</CallbackMethod>
             </Field>
             
-            <!--  This section for specifying the logic for this zone  -->
-
-            <Field id="onAnyAll" type="menu" defaultValue="any" visibleBindingId="section" visibleBindingValue="logic">
+            <Field id="space2" type="label"><Label/></Field>
+             <Field id="separator1" type="separator"/>
+            <Field id="space3" type="label"><Label/></Field>
+            
+            <Field id="onAnyAll" type="menu" defaultValue="any">
                 <Label>This zone is occupied (On) when:</Label>
         		<List>
         			<Option value="all">All</Option>
         			<Option value="any">Any</Option>
         		</List>
         	</Field>
-            <Field id="onSensorsOnOff" type="menu" defaultValue="on" visibleBindingId="section" visibleBindingValue="logic">
+            <Field id="onSensorsOnOff" type="menu" defaultValue="on">
                 <Label>sensors are:</Label>
         		<List>
         			<Option value="on">On</Option>
         			<Option value="off">Off</Option>
         		</List>
         	</Field>
-            <Field id="logicSpace1" type="label" visibleBindingId="section" visibleBindingValue="logic"><Label/></Field>
-<!-->
-            <Field id="onDelayValue" type="textfield" defaultValue="0" visibleBindingId="section" visibleBindingValue="logic">
+            <Field id="space4" type="label"><Label/></Field>
+            <Field id="onDelayValue" type="textfield" defaultValue="0">
                 <Label>Delay On by (Seconds):</Label>
         	</Field>
-            <Field id="offDelayValue" type="textfield" defaultValue="0" visibleBindingId="section" visibleBindingValue="logic">
+            <Field id="offDelayValue" type="textfield" defaultValue="0">
                 <Label>Delay Off by (Seconds):</Label>
-        	</Field>
--->    
+        	</Field> 
        </ConfigUI>
+        <States>
+            <State id="sinceChange">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Seconds since Last Change</TriggerLabel>
+                <ControlPageLabel>Seconds since Last Change</ControlPageLabel>
+            </State>
+            <State id="delayRemaining">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Seconds Delay Remaining</TriggerLabel>
+                <ControlPageLabel>Seconds Delay Remaining</ControlPageLabel>
+            </State>
+        </States>
     </Device>
 </Devices>
+ 
  

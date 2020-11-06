@@ -4,6 +4,7 @@
 
 import logging
 import indigo
+import threading
 
 ################################################################################
 class Plugin(indigo.PluginBase):
@@ -30,6 +31,8 @@ class Plugin(indigo.PluginBase):
         
         self.ZoneList = {}
         self.watchList = {}
+        self.timers = {}
+        self.triggers = {}
         
         indigo.devices.subscribeToChanges()
 
@@ -73,15 +76,81 @@ class Plugin(indigo.PluginBase):
         
         onAnyAll = device.pluginProps.get("onAnyAll","all")
         if onAnyAll == 'all':
-            value = all(onStateList)
+            occupied = all(onStateList)
         else:
-            value = any(onStateList)
+            occupied = any(onStateList)
         
+        previous = device.onState
+                     
         self.logger.debug(u"{}: checkSensors, onSensorsOnOff = {}, onSensorsOnOff = {}, sensors: {}".format(device.name, onSensorsOnOff, onSensorsOnOff, self.ZoneList[device.id]))
 
-        device.updateStateOnServer(key='onOffState', value=value)
+        if occupied:
+            delay = float(device.pluginProps.get("onDelayValue","0"))
+        else:
+            delay = float(device.pluginProps.get("offDelayValue","0"))
+
+        self.logger.debug(u"{}: checkSensors, occupied = {}, previous = {}, delay = {}".format(device.name, occupied, previous, delay))
+
+        # if there's an existing timer for this sensor, cancel it before starting a new one
         
+        timer = self.timers.get(device.id, None)
+        if timer:
+            self.logger.debug(u"{}: checkSensors, cancelling existing timer".format(device.name))
+            timer.cancel()
+            
+        # start a timer with the specified delay
+        
+        timer = threading.Timer(delay, lambda: self.timerComplete(device, occupied))
+        self.timers[device.id] = timer
+        self.logger.debug(u"{}: checkSensors, starting timer {} with delay = {}".format(device.name, timer, delay))
+        timer.start()        
+
+    def timerComplete(self, device, occupied):
+        self.logger.debug(u"{}: timerComplete, occupied = {}".format(device.name, occupied))
     
+        assert device.id in self.timers
+        del self.timers[device.id]
+
+        device.updateStateOnServer(key='onOffState', value=occupied)
+
+        # Now do any triggers
+
+        for trigger in self.triggers.values():
+
+            self.logger.debug("{}: Testing Event Trigger".format(trigger.name))
+        
+            if trigger.pluginProps["zoneDevice"] == str(device.id):
+
+                self.logger.debug("{}: Match on Zone {}".format(trigger.name, device.name))
+            
+                if trigger.pluginTypeId == "zoneOccupied":
+                    if occupied:
+                        indigo.trigger.execute(trigger)
+                
+                elif trigger.pluginTypeId == "zoneUnoccupied":
+                    if not occupied:
+                        indigo.trigger.execute(trigger)
+                                    
+                else:
+                    self.logger.error("{}: Unknown Trigger Type {}".format(trigger.name, trigger.pluginTypeId))
+    
+        
+  
+    ########################################
+    # Trigger (Event) handling 
+    ########################################
+
+    def triggerStartProcessing(self, trigger):
+        self.logger.debug("{}: Adding Trigger".format(trigger.name))
+        assert trigger.id not in self.triggers
+        self.triggers[trigger.id] = trigger
+
+    def triggerStopProcessing(self, trigger):
+        self.logger.debug("{}: Removing Trigger".format(trigger.name))
+        assert trigger.id in self.triggers
+        del self.triggers[trigger.id]
+
+  
     ########################################
     # Menu Methods
     ########################################

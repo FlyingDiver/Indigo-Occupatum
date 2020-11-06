@@ -54,18 +54,6 @@
                 <Label>Delay Off by (Seconds):</Label>
         	</Field> 
        </ConfigUI>
-        <States>
-            <State id="sinceChange">
-                <ValueType>Number</ValueType>
-                <TriggerLabel>Seconds since Last Change</TriggerLabel>
-                <ControlPageLabel>Seconds since Last Change</ControlPageLabel>
-            </State>
-            <State id="delayRemaining">
-                <ValueType>Number</ValueType>
-                <TriggerLabel>Seconds Delay Remaining</TriggerLabel>
-                <ControlPageLabel>Seconds Delay Remaining</ControlPageLabel>
-            </State>
-        </States>
     </Device>
 </Devices>
  

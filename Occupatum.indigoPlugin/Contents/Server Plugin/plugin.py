@@ -171,6 +171,45 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(u"logLevel = {}".format(self.logLevel))
  
 
+    ########################################
+    # This routine will validate the device configuration dialog when the user attempts to save the data
+    ########################################
+
+    def validateDeviceConfigUi(self, valuesDict, typeId, devId):
+        self.logger.debug(u"validateDeviceConfigUi, devId={} ({}), typeId={}, valuesDict = {}".format(devId, type(devId), typeId, valuesDict))
+        errorMsgDict = indigo.Dict()
+        
+        sensorDevices = valuesDict.get('sensorDevices', None)
+        if len(sensorDevices) == 0:
+            self.logger.error(u"Configuration Error: No sensors specified.")
+            errorMsgDict[u"sensorDevices"] = u"Empty Sensor List"
+            return (False, valuesDict, errorMsgDict)
+        elif self.isRecursive(devId, sensorDevices):
+            errorMsgDict[u"sensorDevices"] = u"Sensor Recursion Detected"
+            return (False, valuesDict, errorMsgDict)
+        else:
+            return (True, valuesDict)
+
+    def isRecursive(self, devId, sensorDevices):
+        sensorList = sensorDevices.split(",")
+        self.logger.debug(u"isRecursive, devId = {}, sensorDevices = {}, sensorList = {}".format(devId, sensorDevices, sensorList))
+        
+        if str(devId) in sensorList:
+            self.logger.error(u"Recursion Error: Sensor {} found in sensor list: {}".format(devId, sensorDevices))
+            return True
+            
+        for sensorID in sensorList:
+            try:
+                sensorDev = indigo.devices[int(sensorID)]
+            except:
+                continue
+            if sensorDev.pluginId == self.pluginId and sensorDev.deviceTypeId == 'area':
+                self.logger.debug(u"Recursing on: '{}', for {}".format(sensorDev.name, devId))
+                return self.isRecursive(devId, sensorDev.pluginProps.get('sensorDevices', None))
+    
+        return False
+        
+
     ################################################################################
     #
     # delegate methods for indigo.devices.subscribeToChanges()
@@ -190,17 +229,18 @@ class Plugin(indigo.PluginBase):
             for zone in self.watchList[newDevice.id]:
                 self.checkSensors(indigo.devices[zone])
 
+
     ################################################################################
     #
     # UI List methods
     #
     ################################################################################
 
-    ####################
+    ########################################
     # This is the method that's called to build the source device list. 
-    ####################
+    ########################################
     def sensorDevices(self, filter="", valuesDict=None, typeId="", targetId=0):
-        self.logger.debug(u"sensorDevices called, targetId={}, typeId={}, filter={}, valuesDict = {}".format(targetId, typeId, filter, valuesDict))
+        self.logger.debug(u"sensorDevices, targetId={}, typeId={}, filter={}, valuesDict = {}".format(targetId, typeId, filter, valuesDict))
         returnList = list()
 
         if not valuesDict:
@@ -208,7 +248,7 @@ class Plugin(indigo.PluginBase):
 
         deviceList = valuesDict.get("sensorDevices","").split(",")
         for device in indigo.devices.iter("indigo.sensor"):
-            if (unicode(device.id) not in deviceList) and device.supportsOnState and (device.pluginId != self.pluginId):
+            if (unicode(device.id) not in deviceList) and device.supportsOnState:
                 returnList.append((unicode(device.id), device.name))
         return returnList
 

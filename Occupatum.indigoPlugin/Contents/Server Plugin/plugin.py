@@ -62,6 +62,14 @@ class Plugin(indigo.PluginBase):
     def deviceStopComm(self, device):
         self.logger.info(u"{}: Stopping Device".format(device.name))
 
+        # need to remove this sensor from the watch lists
+        sensorsInZone = [int(x) for x in device.pluginProps.get("sensorDevices","").split(",")]
+        for sensor in sensorsInZone:
+            try:
+                self.watchList[sensor].remove(device.id)
+            except:
+                pass
+                
         assert device.id in self.ZoneList
         del self.ZoneList[device.id]
 
@@ -70,15 +78,15 @@ class Plugin(indigo.PluginBase):
                 
         onSensorsOnOff = device.pluginProps.get("onSensorsOnOff","on")
         if onSensorsOnOff == 'on':
-            onStateList = [indigo.devices[x].onState for x in self.ZoneList[device.id]]
+            occupiedList = [indigo.devices[x].onState for x in self.ZoneList[device.id]]
         else:
-            onStateList = [not indigo.devices[x].onState for x in self.ZoneList[device.id]]
+            occupiedList = [not indigo.devices[x].onState for x in self.ZoneList[device.id]]
         
         onAnyAll = device.pluginProps.get("onAnyAll","all")
         if onAnyAll == 'all':
-            occupied = all(onStateList)
+            occupied = all(occupiedList)
         else:
-            occupied = any(onStateList)
+            occupied = any(occupiedList)
         
         previous = device.onState
                      
@@ -176,7 +184,7 @@ class Plugin(indigo.PluginBase):
     ########################################
 
     def validateDeviceConfigUi(self, valuesDict, typeId, devId):
-        self.logger.debug(u"validateDeviceConfigUi, devId={} ({}), typeId={}, valuesDict = {}".format(devId, type(devId), typeId, valuesDict))
+        self.logger.debug(u"validateDeviceConfigUi, devId={}, typeId={}, valuesDict = {}".format(devId, typeId, valuesDict))
         errorMsgDict = indigo.Dict()
         
         sensorDevices = valuesDict.get('sensorDevices', None)
@@ -184,18 +192,18 @@ class Plugin(indigo.PluginBase):
             self.logger.error(u"Configuration Error: No sensors specified.")
             errorMsgDict[u"sensorDevices"] = u"Empty Sensor List"
             return (False, valuesDict, errorMsgDict)
-        elif self.isRecursive(devId, sensorDevices):
+        elif self.isRecursive(devId,  indigo.devices[devId].name, sensorDevices):
             errorMsgDict[u"sensorDevices"] = u"Sensor Recursion Detected"
             return (False, valuesDict, errorMsgDict)
         else:
             return (True, valuesDict)
 
-    def isRecursive(self, devId, sensorDevices):
-        sensorList = sensorDevices.split(",")
-        self.logger.debug(u"isRecursive, devId = {}, sensorDevices = {}, sensorList = {}".format(devId, sensorDevices, sensorList))
+    def isRecursive(self, devId, devName, sensorDevices):
+        self.logger.debug(u"isRecursive, devId = {}, devName = {}, sensorDevices = {}".format(devId, devName, sensorDevices))
         
+        sensorList = sensorDevices.split(",")
         if str(devId) in sensorList:
-            self.logger.error(u"Recursion Error: Sensor {} found in sensor list: {}".format(devId, sensorDevices))
+            self.logger.error(u"{}: Recursion Error - Sensor {} found in sensor list: {}".format(devName, devId, sensorDevices))
             return True
             
         for sensorID in sensorList:
@@ -204,8 +212,7 @@ class Plugin(indigo.PluginBase):
             except:
                 continue
             if sensorDev.pluginId == self.pluginId and sensorDev.deviceTypeId == 'area':
-                self.logger.debug(u"Recursing on: '{}', for {}".format(sensorDev.name, devId))
-                return self.isRecursive(devId, sensorDev.pluginProps.get('sensorDevices', None))
+                return self.isRecursive(devId, sensorDev.name, sensorDev.pluginProps.get('sensorDevices', None))
     
         return False
         

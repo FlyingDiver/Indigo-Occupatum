@@ -31,7 +31,8 @@ class Plugin(indigo.PluginBase):
         
         self.ZoneList = {}
         self.watchList = {}
-        self.timers = {}
+        self.delayTimers = {}
+        self.forceTimers = {}
         self.triggers = {}
         
         indigo.devices.subscribeToChanges()
@@ -69,59 +70,104 @@ class Plugin(indigo.PluginBase):
                 self.watchList[sensor].remove(device.id)
             except:
                 pass
+
+        # if there are existing timers for this sensor, cancel them
+        
+        timer = self.delayTimers.get(device.id, None)
+        if timer:
+            timer.cancel()
+            
+        timer = self.forceTimers.get(device.id, None)
+        if timer:
+            timer.cancel()
                 
         assert device.id in self.ZoneList
         del self.ZoneList[device.id]
 
 
-    def checkSensors(self, device):
+    def checkSensors(self, zoneDevice):
                 
-        onSensorsOnOff = device.pluginProps.get("onSensorsOnOff","on")
-        if onSensorsOnOff == 'on':
-            occupiedList = [indigo.devices[x].onState for x in self.ZoneList[device.id]]
+        onSensorsOnOff = zoneDevice.pluginProps.get("onSensorsOnOff","on")
+        if onSensorsOnOff == 'change':
+            occupiedList = [True for x in self.ZoneList[zoneDevice.id]]            
+        elif onSensorsOnOff == 'on':
+            occupiedList = [indigo.devices[x].onState for x in self.ZoneList[zoneDevice.id]]
         else:
-            occupiedList = [not indigo.devices[x].onState for x in self.ZoneList[device.id]]
+            occupiedList = [not indigo.devices[x].onState for x in self.ZoneList[zoneDevice.id]]
         
-        onAnyAll = device.pluginProps.get("onAnyAll","all")
+        onAnyAll = zoneDevice.pluginProps.get("onAnyAll","all")
         if onAnyAll == 'all':
             occupied = all(occupiedList)
         else:
             occupied = any(occupiedList)
         
-        previous = device.onState
+        previous = zoneDevice.onState
                      
-        self.logger.debug(u"{}: checkSensors, onSensorsOnOff = {}, onSensorsOnOff = {}, sensors: {}".format(device.name, onSensorsOnOff, onSensorsOnOff, self.ZoneList[device.id]))
+        self.logger.debug(u"{}: checkSensors, onSensorsOnOff = {}, onSensorsOnOff = {}, sensors: {}".format(zoneDevice.name, onSensorsOnOff, onSensorsOnOff, self.ZoneList[zoneDevice.id]))
 
         if occupied:
-            delay = float(device.pluginProps.get("onDelayValue","0"))
+            delay = float(zoneDevice.pluginProps.get("onDelayValue","0"))
         else:
-            delay = float(device.pluginProps.get("offDelayValue","0"))
+            delay = float(zoneDevice.pluginProps.get("offDelayValue","0"))
 
-        self.logger.debug(u"{}: checkSensors, occupied = {}, previous = {}, delay = {}".format(device.name, occupied, previous, delay))
+        self.logger.debug(u"{}: checkSensors, occupied = {}, previous = {}, delay = {}".format(zoneDevice.name, occupied, previous, delay))
 
         # if there's an existing timer for this sensor, cancel it before starting a new one
         
-        timer = self.timers.get(device.id, None)
+        timer = self.delayTimers.get(zoneDevice.id, None)
         if timer:
-            self.logger.debug(u"{}: checkSensors, cancelling existing timer".format(device.name))
+            self.logger.debug(u"{}: checkSensors, cancelling existing delay timer".format(zoneDevice.name))
             timer.cancel()
             
         # start a timer with the specified delay
         
-        timer = threading.Timer(delay, lambda: self.timerComplete(device, occupied))
-        self.timers[device.id] = timer
-        self.logger.debug(u"{}: checkSensors, starting timer {} with delay = {}".format(device.name, timer, delay))
+        timer = threading.Timer(delay, lambda: self.delayTimerComplete(zoneDevice, occupied))
+        self.delayTimers[zoneDevice.id] = timer
+        self.logger.debug(u"{}: checkSensors, starting delay timer {} with delay = {}".format(zoneDevice.name, timer, delay))
         timer.start()        
 
-    def timerComplete(self, device, occupied):
-        self.logger.debug(u"{}: timerComplete, occupied = {}".format(device.name, occupied))
-    
-        assert device.id in self.timers
-        del self.timers[device.id]
+        if onSensorsOnOff == 'change':
+            # if there's an existing timer for this sensor, cancel it before starting a new one
+        
+            timer = self.forceTimers.get(zoneDevice.id, None)
+            if timer:
+                self.logger.debug(u"{}: checkSensors, cancelling existing force timer".format(zoneDevice.name))
+                timer.cancel()
+                
+            delay = float(zoneDevice.pluginProps.get("forceOffValue"))
+            
+            # start a timer with the specified delay
+        
+            timer = threading.Timer(delay, lambda: self.forceTimerComplete(zoneDevice, False))
+            self.forceTimers[zoneDevice.id] = timer
+            self.logger.debug(u"{}: checkSensors, starting force timer {} with delay = {}".format(zoneDevice.name, timer, delay))
+            timer.start()        
 
+
+    def delayTimerComplete(self, device, occupied):
+        self.logger.debug(u"{}: delayTimerComplete, occupied = {}".format(device.name, occupied))
+    
+        if device.id in self.delayTimers:
+            del self.delayTimers[device.id]
+        else:
+            self.logger.warning(u"{}: delayTimerComplete, no timer found".format(zoneDevice.name))
         device.updateStateOnServer(key='onOffState', value=occupied)
 
-        # Now do any triggers
+        self.checkTriggers(device, occupied)
+        
+    def forceTimerComplete(self, device, occupied):
+        self.logger.debug(u"{}: forceTimerComplete, occupied = {}".format(device.name, occupied))
+    
+        if device.id in self.forceTimers:
+            del self.forceTimers[device.id]
+        else:
+            self.logger.warning(u"{}: forceTimerComplete, no timer found".format(zoneDevice.name))
+        device.updateStateOnServer(key='onOffState', value=occupied)
+
+        self.checkTriggers(device, occupied)
+
+
+    def checkTriggers(self, device, occupied):
 
         for trigger in self.triggers.values():
 
@@ -142,6 +188,22 @@ class Plugin(indigo.PluginBase):
                 else:
                     self.logger.error("{}: Unknown Trigger Type {}".format(trigger.name, trigger.pluginTypeId))
     
+   
+    def cancelTimer(self, pluginAction, zoneDevice):
+        timer = self.delayTimers.get(zoneDevice.id, None)
+        if timer:
+            self.logger.debug(u"{}: Timer Cancelled".format(zoneDevice.name))
+            timer.cancel()
+            del self.delayTimers[zoneDevice.id]
+        else:
+            self.logger.debug(u"{}: No Timer Active".format(zoneDevice.name))
+
+        state = pluginAction.props["state"]
+        if state == "on":
+            zoneDevice.updateStateOnServer(key='onOffState', value=True)
+        elif state == "off":
+            zoneDevice.updateStateOnServer(key='onOffState', value=False)
+
         
   
     ########################################
@@ -192,9 +254,16 @@ class Plugin(indigo.PluginBase):
             self.logger.error(u"Configuration Error: No sensors specified.")
             errorMsgDict[u"sensorDevices"] = u"Empty Sensor List"
             return (False, valuesDict, errorMsgDict)
+            
         elif self.isRecursive(devId,  indigo.devices[devId].name, sensorDevices):
+            self.logger.error(u"Configuration Error: Sensor Recursion Detected")
             errorMsgDict[u"sensorDevices"] = u"Sensor Recursion Detected"
             return (False, valuesDict, errorMsgDict)
+        elif valuesDict.get("onSensorsOnOff", None) == "change" and (valuesDict.get("forceOffValue", "") == "" or int(valuesDict.get("forceOffValue", "0")) == 0):
+            self.logger.error(u"Configuration Error: Force Off required for 'Any Change' sensors")
+            errorMsgDict[u"forceOffValue"] = u"Force Off required for 'Any Change' sensors"
+            return (False, valuesDict, errorMsgDict)
+        
         else:
             return (True, valuesDict)
 

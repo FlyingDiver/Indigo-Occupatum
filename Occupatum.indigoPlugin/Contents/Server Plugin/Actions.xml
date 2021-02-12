@@ -1,3 +1,17 @@
 <?xml version="1.0"?>
 <Actions>
+	<Action id="cancelTimer" deviceFilter="self.area">
+		<Name>Cancel Timer for Zone</Name>
+		<CallbackMethod>cancelTimer</CallbackMethod>
+        <ConfigUI>
+            <Field id="state" type="menu">
+                <Label>Zone State:</Label>
+        		<List>
+        			<Option value="on">On</Option>
+        			<Option value="off">Off</Option>
+        			<Option value="unchanged">Unchanged</Option>
+        		</List>
+            </Field>
+        </ConfigUI>
+	</Action>
 </Actions>

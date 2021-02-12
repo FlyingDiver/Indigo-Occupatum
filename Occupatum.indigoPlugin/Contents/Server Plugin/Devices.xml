@@ -44,6 +44,7 @@
         		<List>
         			<Option value="on">On</Option>
         			<Option value="off">Off</Option>
+        			<Option value="change">Either (Any Change)</Option>
         		</List>
         	</Field>
             <Field id="space4" type="label"><Label/></Field>
@@ -53,6 +54,12 @@
             <Field id="offDelayValue" type="textfield" defaultValue="0">
                 <Label>Delay Off by (Seconds):</Label>
         	</Field> 
+            <Field id="forceOffValue" type="textfield" defaultValue="">
+                <Label>Force Off after (Seconds):</Label>
+        	</Field> 
+            <Field id="forceOffValue_help" type="label" fontSize="mini" alignWithControl="true">
+                <Label>Leave bank for no Forced Off.  Required if "Any Change" is used</Label>
+            </Field>
        </ConfigUI>
     </Device>
 </Devices>

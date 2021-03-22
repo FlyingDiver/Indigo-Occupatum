@@ -103,7 +103,7 @@ class Plugin(indigo.PluginBase):
         
         previous = zoneDevice.onState
                      
-        self.logger.debug(u"{}: checkSensors, onSensorsOnOff = {}, onSensorsOnOff = {}, sensors: {}".format(zoneDevice.name, onSensorsOnOff, onSensorsOnOff, self.ZoneList[zoneDevice.id]))
+        self.logger.debug(u"{}: checkSensors, onSensorsOnOff = {}, onAnyAll = {}, sensors: {}".format(zoneDevice.name, onSensorsOnOff, onAnyAll, self.ZoneList[zoneDevice.id]))
 
         if occupied:
             delay = float(zoneDevice.pluginProps.get("onDelayValue","0"))
@@ -146,23 +146,23 @@ class Plugin(indigo.PluginBase):
 
     def delayTimerComplete(self, device, occupied):
         self.logger.debug(u"{}: delayTimerComplete, occupied = {}".format(device.name, occupied))
+        device.updateStateOnServer(key='onOffState', value=occupied)
     
         if device.id in self.delayTimers:
             del self.delayTimers[device.id]
         else:
             self.logger.warning(u"{}: delayTimerComplete, no timer found".format(zoneDevice.name))
-        device.updateStateOnServer(key='onOffState', value=occupied)
-
+            
         self.checkTriggers(device, occupied)
         
     def forceTimerComplete(self, device, occupied):
         self.logger.debug(u"{}: forceTimerComplete, occupied = {}".format(device.name, occupied))
+        device.updateStateOnServer(key='onOffState', value=occupied)
     
         if device.id in self.forceTimers:
             del self.forceTimers[device.id]
         else:
             self.logger.warning(u"{}: forceTimerComplete, no timer found".format(zoneDevice.name))
-        device.updateStateOnServer(key='onOffState', value=occupied)
 
         self.checkTriggers(device, occupied)
 
@@ -192,11 +192,11 @@ class Plugin(indigo.PluginBase):
     def cancelTimer(self, pluginAction, zoneDevice):
         timer = self.delayTimers.get(zoneDevice.id, None)
         if timer:
-            self.logger.debug(u"{}: Timer Cancelled".format(zoneDevice.name))
+            self.logger.debug(u"{}: cancelTimer: Timer Cancelled".format(zoneDevice.name))
             timer.cancel()
             del self.delayTimers[zoneDevice.id]
         else:
-            self.logger.debug(u"{}: No Timer Active".format(zoneDevice.name))
+            self.logger.debug(u"{}: cancelTimer: No Timer Active".format(zoneDevice.name))
 
         state = pluginAction.props["state"]
         if state == "on":
@@ -296,12 +296,12 @@ class Plugin(indigo.PluginBase):
         indigo.PluginBase.deviceDeleted(self, delDevice)
         if delDevice.id in self.watchList:
             self.logger.debug(u"Watched Device deleted: {}".format(delDevice.name))
-            
+#            del self.watchList[delDevice.id]
 
     def deviceUpdated(self, oldDevice, newDevice):
         indigo.PluginBase.deviceUpdated(self, oldDevice, newDevice)
         if newDevice.id in self.watchList and oldDevice.onState != newDevice.onState:   # only care about onState changes
-            self.logger.debug(u"Watched Device updated: {}".format(newDevice.name))
+            self.logger.debug(u"Watched Device updated: {} is now {}".format(newDevice.name, newDevice.onState))
             for zone in self.watchList[newDevice.id]:
                 self.checkSensors(indigo.devices[zone])
 

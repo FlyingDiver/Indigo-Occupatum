@@ -58,7 +58,7 @@
                 <Label>Force Off after (Seconds):</Label>
         	</Field> 
             <Field id="forceOffValue_help" type="label" fontSize="mini" alignWithControl="true">
-                <Label>Leave bank for no Forced Off.  Required if "Any Change" is used</Label>
+                <Label>Leave blank for no Forced Off.  Required if "Any Change" is used</Label>
             </Field>
        </ConfigUI>
     </Device>

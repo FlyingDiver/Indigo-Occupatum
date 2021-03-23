@@ -146,25 +146,27 @@ class Plugin(indigo.PluginBase):
 
     def delayTimerComplete(self, device, occupied):
         self.logger.debug(u"{}: delayTimerComplete, occupied = {}".format(device.name, occupied))
-        device.updateStateOnServer(key='onOffState', value=occupied)
     
         if device.id in self.delayTimers:
             del self.delayTimers[device.id]
         else:
             self.logger.warning(u"{}: delayTimerComplete, no timer found".format(zoneDevice.name))
-            
-        self.checkTriggers(device, occupied)
+
+        if device.onState != occupied:            
+            device.updateStateOnServer(key='onOffState', value=occupied)
+            self.checkTriggers(device, occupied)
         
     def forceTimerComplete(self, device, occupied):
         self.logger.debug(u"{}: forceTimerComplete, occupied = {}".format(device.name, occupied))
-        device.updateStateOnServer(key='onOffState', value=occupied)
     
         if device.id in self.forceTimers:
             del self.forceTimers[device.id]
         else:
             self.logger.warning(u"{}: forceTimerComplete, no timer found".format(zoneDevice.name))
 
-        self.checkTriggers(device, occupied)
+        if device.onState != occupied:            
+            device.updateStateOnServer(key='onOffState', value=occupied)
+            self.checkTriggers(device, occupied)
 
 
     def checkTriggers(self, device, occupied):

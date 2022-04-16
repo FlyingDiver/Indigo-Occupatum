@@ -17,42 +17,35 @@ class Plugin(indigo.PluginBase):
 
         pfmt = logging.Formatter('%(asctime)s.%(msecs)03d\t[%(levelname)8s] %(name)20s.%(funcName)-25s%(msg)s', datefmt='%Y-%m-%d %H:%M:%S')
         self.plugin_file_handler.setFormatter(pfmt)
-
-        try:
-            self.logLevel = int(self.pluginPrefs[u"logLevel"])
-        except:
-            self.logLevel = logging.INFO
+        self.logLevel = int(self.pluginPrefs.get("logLevel", logging.INFO))
         self.indigo_log_handler.setLevel(self.logLevel)
-        self.logger.debug(u"logLevel = {}".format(self.logLevel))
+        self.logger.debug(f"logLevel = {self.logLevel}")
 
-
-    def startup(self):
-        self.logger.info(u"Starting Occupatum")
-        
         self.ZoneList = {}
         self.watchList = {}
         self.delayTimers = {}
         self.forceTimers = {}
         self.triggers = {}
-        
+
+    def startup(self):
+        self.logger.info("Starting Occupatum")
         indigo.devices.subscribeToChanges()
 
     def shutdown(self):
-        self.logger.info(u"Stopping Occupatum")
-
+        self.logger.info("Stopping Occupatum")
 
     def deviceStartComm(self, device):
-        self.logger.info(u"{}: Starting Device".format(device.name))
+        self.logger.info(f"{device.name}: Starting Device")
 
         sensorsInZone = [int(x) for x in device.pluginProps.get("sensorDevices","").split(",")]
-        self.logger.debug(u"{}: Zone {} uses sensor devices: {}".format(device.name, device.id, sensorsInZone))
+        self.logger.debug(f"{device.name}: Zone {device.id} uses sensor devices: {sensorsInZone}")
 
         for sensor in sensorsInZone:
             if sensor not in self.watchList:
                 self.watchList[sensor] = list()
             self.watchList[sensor].append(device.id)
                 
-        self.logger.debug(u"{}: watchList updated: {}".format(device.name, self.watchList))
+        self.logger.debug(f"{device.name}: watchList updated: {self.watchList}")
         
         assert device.id not in self.ZoneList
         self.ZoneList[device.id] = sensorsInZone
@@ -61,14 +54,14 @@ class Plugin(indigo.PluginBase):
         self.checkSensors(device)
 
     def deviceStopComm(self, device):
-        self.logger.info(u"{}: Stopping Device".format(device.name))
+        self.logger.info(f"{device.name}: Stopping Device")
 
         # need to remove this sensor from the watch lists
         sensorsInZone = [int(x) for x in device.pluginProps.get("sensorDevices","").split(",")]
         for sensor in sensorsInZone:
             try:
                 self.watchList[sensor].remove(device.id)
-            except:
+            except (Exception,):
                 pass
 
         # if there are existing timers for this sensor, cancel them
@@ -83,7 +76,6 @@ class Plugin(indigo.PluginBase):
                 
         assert device.id in self.ZoneList
         del self.ZoneList[device.id]
-
 
     def checkSensors(self, zoneDevice):
                 
@@ -103,27 +95,27 @@ class Plugin(indigo.PluginBase):
         
         previous = zoneDevice.onState
                      
-        self.logger.debug(u"{}: checkSensors, onSensorsOnOff = {}, onAnyAll = {}, sensors: {}".format(zoneDevice.name, onSensorsOnOff, onAnyAll, self.ZoneList[zoneDevice.id]))
+        self.logger.debug(f"{zoneDevice.name}: checkSensors, onSensorsOnOff = {onSensorsOnOff}, onAnyAll = {onAnyAll}, sensors: {self.ZoneList[zoneDevice.id]}")
 
         if occupied:
             delay = float(zoneDevice.pluginProps.get("onDelayValue","0"))
         else:
             delay = float(zoneDevice.pluginProps.get("offDelayValue","0"))
 
-        self.logger.debug(u"{}: checkSensors, occupied = {}, previous = {}, delay = {}".format(zoneDevice.name, occupied, previous, delay))
+        self.logger.debug(f"{zoneDevice.name}: checkSensors, occupied = {occupied}, previous = {previous}, delay = {delay}")
 
         # if there's an existing timer for this sensor, cancel it before starting a new one
         
         timer = self.delayTimers.get(zoneDevice.id, None)
         if timer:
-            self.logger.debug(u"{}: checkSensors, cancelling existing delay timer".format(zoneDevice.name))
+            self.logger.debug(f"{zoneDevice.name}: checkSensors, cancelling existing delay timer")
             timer.cancel()
             
         # start a timer with the specified delay
         
         timer = threading.Timer(delay, lambda: self.delayTimerComplete(zoneDevice, occupied))
         self.delayTimers[zoneDevice.id] = timer
-        self.logger.debug(u"{}: checkSensors, starting delay timer {} with delay = {}".format(zoneDevice.name, timer, delay))
+        self.logger.debug(f"{zoneDevice.name}: checkSensors, starting delay timer {timer} with delay = {delay}")
         timer.start()        
 
         if onSensorsOnOff == 'change':
@@ -131,7 +123,7 @@ class Plugin(indigo.PluginBase):
         
             timer = self.forceTimers.get(zoneDevice.id, None)
             if timer:
-                self.logger.debug(u"{}: checkSensors, cancelling existing force timer".format(zoneDevice.name))
+                self.logger.debug(f"{zoneDevice.name}: checkSensors, cancelling existing force timer")
                 timer.cancel()
                 
             delay = float(zoneDevice.pluginProps.get("forceOffValue"))
@@ -140,65 +132,72 @@ class Plugin(indigo.PluginBase):
         
             timer = threading.Timer(delay, lambda: self.forceTimerComplete(zoneDevice, False))
             self.forceTimers[zoneDevice.id] = timer
-            self.logger.debug(u"{}: checkSensors, starting force timer {} with delay = {}".format(zoneDevice.name, timer, delay))
+            self.logger.debug(f"{zoneDevice.name}: checkSensors, starting force timer {timer} with delay = {delay}")
             timer.start()        
 
-
     def delayTimerComplete(self, device, occupied):
-        self.logger.debug(u"{}: delayTimerComplete, occupied = {}".format(device.name, occupied))
+        self.logger.debug(f"{device.name}: delayTimerComplete, occupied = {occupied}")
     
         if device.id in self.delayTimers:
             del self.delayTimers[device.id]
         else:
-            self.logger.warning(u"{}: delayTimerComplete, no timer found".format(zoneDevice.name))
+            self.logger.warning(f"{zoneDevice.name}: delayTimerComplete, no timer found")
 
         if device.onState != occupied:            
             device.updateStateOnServer(key='onOffState', value=occupied)
             self.checkTriggers(device, occupied)
         
     def forceTimerComplete(self, device, occupied):
-        self.logger.debug(u"{}: forceTimerComplete, occupied = {}".format(device.name, occupied))
+        self.logger.debug(f"{device.name}: forceTimerComplete, occupied = {occupied}")
     
         if device.id in self.forceTimers:
             del self.forceTimers[device.id]
         else:
-            self.logger.warning(u"{}: forceTimerComplete, no timer found".format(zoneDevice.name))
+            self.logger.warning(f"{zoneDevice.name}: forceTimerComplete, no timer found")
 
         if device.onState != occupied:            
             device.updateStateOnServer(key='onOffState', value=occupied)
             self.checkTriggers(device, occupied)
 
+    ########################################
+    # Trigger (Event) handling
+    ########################################
+
+    def triggerStartProcessing(self, trigger):
+        self.logger.debug(f"{trigger.name}: Adding Trigger")
+        assert trigger.id not in self.triggers
+        self.triggers[trigger.id] = trigger
+
+    def triggerStopProcessing(self, trigger):
+        self.logger.debug(f"{trigger.name}: Removing Trigger")
+        assert trigger.id in self.triggers
+        del self.triggers[trigger.id]
 
     def checkTriggers(self, device, occupied):
 
         for trigger in self.triggers.values():
-
-            self.logger.debug("{}: Testing Event Trigger".format(trigger.name))
+            self.logger.debug(f"{trigger.name}: Testing Event Trigger")
         
             if trigger.pluginProps["zoneDevice"] == str(device.id):
-
-                self.logger.debug("{}: Match on Zone {}".format(trigger.name, device.name))
+                self.logger.debug(f"{trigger.name}: Match on Zone {device.name}")
             
                 if trigger.pluginTypeId == "zoneOccupied":
                     if occupied:
                         indigo.trigger.execute(trigger)
-                
                 elif trigger.pluginTypeId == "zoneUnoccupied":
                     if not occupied:
                         indigo.trigger.execute(trigger)
-                                    
                 else:
-                    self.logger.error("{}: Unknown Trigger Type {}".format(trigger.name, trigger.pluginTypeId))
-    
+                    self.logger.error(f"{trigger.name}: Unknown Trigger Type {trigger.pluginTypeId}")
    
     def cancelTimer(self, pluginAction, zoneDevice):
         timer = self.delayTimers.get(zoneDevice.id, None)
         if timer:
-            self.logger.debug(u"{}: cancelTimer: Timer Cancelled".format(zoneDevice.name))
+            self.logger.debug(f"{zoneDevice.name}: cancelTimer: Timer Cancelled")
             timer.cancel()
             del self.delayTimers[zoneDevice.id]
         else:
-            self.logger.debug(u"{}: cancelTimer: No Timer Active".format(zoneDevice.name))
+            self.logger.debug(f"{zoneDevice.name}: cancelTimer: No Timer Active")
 
         state = pluginAction.props["state"]
         if state == "on":
@@ -206,42 +205,15 @@ class Plugin(indigo.PluginBase):
         elif state == "off":
             zoneDevice.updateStateOnServer(key='onOffState', value=False)
 
-        
-  
-    ########################################
-    # Trigger (Event) handling 
-    ########################################
-
-    def triggerStartProcessing(self, trigger):
-        self.logger.debug("{}: Adding Trigger".format(trigger.name))
-        assert trigger.id not in self.triggers
-        self.triggers[trigger.id] = trigger
-
-    def triggerStopProcessing(self, trigger):
-        self.logger.debug("{}: Removing Trigger".format(trigger.name))
-        assert trigger.id in self.triggers
-        del self.triggers[trigger.id]
-
-  
-    ########################################
-    # Menu Methods
-    ########################################
-
-
-
     ########################################
     # ConfigUI methods
     ########################################
 
     def closedPrefsConfigUi(self, valuesDict, userCancelled):
         if not userCancelled:
-            try:
-                self.logLevel = int(valuesDict[u"logLevel"])
-            except:
-                self.logLevel = logging.INFO
+            self.logLevel = int(valuesDict.get(u"logLevel", logging.INFO))
             self.indigo_log_handler.setLevel(self.logLevel)
-            self.logger.debug(u"logLevel = {}".format(self.logLevel))
- 
+            self.logger.debug(f"logLevel = {self.logLevel}")
 
     ########################################
     # This routine will validate the device configuration dialog when the user attempts to save the data
@@ -253,40 +225,38 @@ class Plugin(indigo.PluginBase):
         
         sensorDevices = valuesDict.get('sensorDevices', None)
         if len(sensorDevices) == 0:
-            self.logger.error(u"Configuration Error: No sensors specified.")
+            self.logger.error("Configuration Error: No sensors specified.")
             errorMsgDict[u"sensorDevices"] = u"Empty Sensor List"
-            return (False, valuesDict, errorMsgDict)
+            return False, valuesDict, errorMsgDict
             
         elif self.isRecursive(devId,  indigo.devices[devId].name, sensorDevices):
-            self.logger.error(u"Configuration Error: Sensor Recursion Detected")
-            errorMsgDict[u"sensorDevices"] = u"Sensor Recursion Detected"
-            return (False, valuesDict, errorMsgDict)
+            self.logger.error("Configuration Error: Sensor Recursion Detected")
+            errorMsgDict[u"sensorDevices"] = "Sensor Recursion Detected"
+            return False, valuesDict, errorMsgDict
         elif valuesDict.get("onSensorsOnOff", None) == "change" and (valuesDict.get("forceOffValue", "") == "" or int(valuesDict.get("forceOffValue", "0")) == 0):
-            self.logger.error(u"Configuration Error: Force Off required for 'Any Change' sensors")
-            errorMsgDict[u"forceOffValue"] = u"Force Off required for 'Any Change' sensors"
-            return (False, valuesDict, errorMsgDict)
-        
+            self.logger.error("Configuration Error: Force Off required for 'Any Change' sensors")
+            errorMsgDict["forceOffValue"] = u"Force Off required for 'Any Change' sensors"
+            return False, valuesDict, errorMsgDict
         else:
-            return (True, valuesDict)
+            return True, valuesDict
 
     def isRecursive(self, devId, devName, sensorDevices):
-        self.logger.debug(u"isRecursive, devId = {}, devName = {}, sensorDevices = {}".format(devId, devName, sensorDevices))
+        self.logger.debug(f"isRecursive, devId = {devId}, devName = {devName}, sensorDevices = {sensorDevices}")
         
         sensorList = sensorDevices.split(",")
         if str(devId) in sensorList:
-            self.logger.error(u"{}: Recursion Error - Sensor {} found in sensor list: {}".format(devName, devId, sensorDevices))
+            self.logger.error(f"{devName}: Recursion Error - Sensor {devId} found in sensor list: {sensorDevices}")
             return True
             
         for sensorID in sensorList:
             try:
                 sensorDev = indigo.devices[int(sensorID)]
-            except:
+            except (Exception,):
                 continue
             if sensorDev.pluginId == self.pluginId and sensorDev.deviceTypeId == 'area':
                 return self.isRecursive(devId, sensorDev.name, sensorDev.pluginProps.get('sensorDevices', None))
     
         return False
-        
 
     ################################################################################
     #
@@ -297,16 +267,15 @@ class Plugin(indigo.PluginBase):
     def deviceDeleted(self, delDevice):
         indigo.PluginBase.deviceDeleted(self, delDevice)
         if delDevice.id in self.watchList:
-            self.logger.debug(u"Watched Device deleted: {}".format(delDevice.name))
-#            del self.watchList[delDevice.id]
+            self.logger.debug(f"Watched Device deleted: {delDevice.name}")
+            del self.watchList[delDevice.id]
 
     def deviceUpdated(self, oldDevice, newDevice):
         indigo.PluginBase.deviceUpdated(self, oldDevice, newDevice)
         if newDevice.id in self.watchList and oldDevice.onState != newDevice.onState:   # only care about onState changes
-            self.logger.debug(u"Watched Device updated: {} is now {}".format(newDevice.name, newDevice.onState))
+            self.logger.debug(f"Watched Device updated: {newDevice.name} is now {newDevice.onState}")
             for zone in self.watchList[newDevice.id]:
                 self.checkSensors(indigo.devices[zone])
-
 
     ################################################################################
     #
@@ -318,7 +287,7 @@ class Plugin(indigo.PluginBase):
     # This is the method that's called to build the source device list. 
     ########################################
     def sensorDevices(self, filter="", valuesDict=None, typeId="", targetId=0):
-        self.logger.debug(u"sensorDevices, targetId={}, typeId={}, filter={}, valuesDict = {}".format(targetId, typeId, filter, valuesDict))
+        self.logger.debug(f"sensorDevices, targetId={targetId}, typeId={typeId}, filter={filter}, valuesDict = {valuesDict}")
         returnList = list()
 
         if not valuesDict:
@@ -330,12 +299,11 @@ class Plugin(indigo.PluginBase):
                 returnList.append((unicode(device.id), device.name))
         return returnList
 
-
     ########################################
     # This is the method that's called by the Add Device button in the config dialog.
     ########################################
     def addDevice(self, valuesDict, typeId, devId):
-        self.logger.debug(u"addDevice called, devId={}, typeId={}, valuesDict = {}".format(devId, typeId, valuesDict))
+        self.logger.debug(f"addDevice called, devId={devId}, typeId={typeId}, valuesDict = {valuesDict}")
         
         if "sensorDeviceMenu" in valuesDict:
             deviceId = valuesDict["sensorDeviceMenu"]
@@ -343,7 +311,7 @@ class Plugin(indigo.PluginBase):
                 return
                 
             selectedDevicesString = valuesDict.get("sensorDevices","")
-            self.logger.debug(u"adding device: {} to {}".format(deviceId, selectedDevicesString))
+            self.logger.debug(f"adding device: {deviceId} to {selectedDevicesString}")
             
             if selectedDevicesString == "":
                 selectedDevicesString = deviceId
@@ -360,19 +328,18 @@ class Plugin(indigo.PluginBase):
 
             return valuesDict
 
-
     ########################################
     # This is the method that's called by the Delete Device button in the scene device config UI.
     ########################################
     def deleteDevices(self, valuesDict, typeId, devId):
-        self.logger.debug(u"deleteDevices called, devId={}, typeId={}, valuesDict = {}".format(devId, typeId, valuesDict))
+        self.logger.debug(f"deleteDevices called, devId={devId}, typeId={typeId}, valuesDict = {valuesDict}")
         
         if "sensorDevices" in valuesDict:
             devicesInZone = valuesDict.get("sensorDevices","").split(",")
             selectedDevices = valuesDict.get("sensorDeviceList", [])
 
             for deviceId in selectedDevices:
-                self.logger.debug(u"remove deviceId: {}".format(deviceId))
+                self.logger.debug(f"remove deviceId: {deviceId}")
                 if deviceId in devicesInZone:
                     devicesInZone.remove(deviceId)
             valuesDict["sensorDevices"] = ",".join(devicesInZone)
@@ -400,4 +367,3 @@ class Plugin(indigo.PluginBase):
                 if int(devId) in indigo.devices:
                     returnList.append((devId, indigo.devices[int(devId)].name))
         return returnList
-

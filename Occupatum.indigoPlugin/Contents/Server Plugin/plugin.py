@@ -78,15 +78,32 @@ class Plugin(indigo.PluginBase):
         del self.ZoneList[device.id]
 
     def checkSensors(self, zoneDevice):
-                
-        onSensorsOnOff = zoneDevice.pluginProps.get("onSensorsOnOff","on")
-        if onSensorsOnOff == 'change':
-            occupiedList = [True for x in self.ZoneList[zoneDevice.id]]            
-        elif onSensorsOnOff == 'on':
-            occupiedList = [indigo.devices[x].onState for x in self.ZoneList[zoneDevice.id]]
-        else:
-            occupiedList = [not indigo.devices[x].onState for x in self.ZoneList[zoneDevice.id]]
         
+        #this section checks for the Occupatum device settings for occupancy when sensor
+        #is: On, Off, Either(Any Change)        
+        onSensorsOnOff = zoneDevice.pluginProps.get("onSensorsOnOff","on")
+        occupiedList = []
+        if onSensorsOnOff == 'change':
+            self.logger.debug("Sensor setting is Either(Any Change)")
+            occupiedList = [True for x in self.ZoneList[zoneDevice.id]]
+        elif onSensorsOnOff == 'on':
+            self.logger.debug("Sensor setting is On")
+            for x in self.ZoneList[zoneDevice.id]:
+                if hasattr(indigo.devices[x], 'supportsOnState'):
+                    occupiedList.append((indigo.devices[x].onState))
+            for x in self.ZoneList[zoneDevice.id]:
+                if indigo.devices[x].model == "Alarm Zone":
+                    occupiedList.append((indigo.devices[x].states['state.open']))
+        else:
+            self.logger.debug("Sensor setting is Off")
+            for x in self.ZoneList[zoneDevice.id]:
+                if hasattr(indigo.devices[x], 'supportsOnState'):
+                    occupiedList.append((not indigo.devices[x].onState))
+            for x in self.ZoneList[zoneDevice.id]:
+                if indigo.devices[x].model == "Alarm Zone":
+                    occupiedList.append((not indigo.devices[x].states['state.open']))
+
+        self.logger.debug(occupiedList)
         onAnyAll = zoneDevice.pluginProps.get("onAnyAll","all")
         if onAnyAll == 'all':
             occupied = all(occupiedList)
@@ -231,14 +248,26 @@ class Plugin(indigo.PluginBase):
             
         elif self.isRecursive(devId,  indigo.devices[devId].name, sensorDevices):
             self.logger.error("Configuration Error: Sensor Recursion Detected")
-            errorMsgDict[u"sensorDevices"] = "Sensor Recursion Detected"
-            return False, valuesDict, errorMsgDict
-        elif valuesDict.get("onSensorsOnOff", None) == "change" and (valuesDict.get("forceOffValue", "") == "" or int(valuesDict.get("forceOffValue", "0")) == 0):
-            self.logger.error("Configuration Error: Force Off required for 'Any Change' sensors")
-            errorMsgDict["forceOffValue"] = u"Force Off required for 'Any Change' sensors"
-            return False, valuesDict, errorMsgDict
-        else:
-            return True, valuesDict
+            errorMsgDict[u"sensorDevices"] = u"Sensor Recursion Detected"
+            return (False, valuesDict, errorMsgDict)
+            
+        elif valuesDict.get("onSensorsOnOff", None) == "change" and (valuesDict.get("forceOffValue", "") == "" or (valuesDict.get("forceOffValue", "0")) == "0" or not (valuesDict.get("forceOffValue", "")).isdigit()):
+            self.logger.error("Configuration Error: Force Off valid number required for 'Either (Any Change)' sensors")
+            errorMsgDict["forceOffValue"] = "Force Off valid number required for 'Either (Any Change)' sensors"
+            return (False, valuesDict, errorMsgDict)
+        
+        elif not (valuesDict.get("onDelayValue", "")).isdigit():
+            self.logger.error("Configuration Error: A number for time in seconds is required")
+            errorMsgDict["onDelayValue"] = "Please enter a valid number"
+            return (False, valuesDict, errorMsgDict)
+        
+        elif not (valuesDict.get("offDelayValue", "")).isdigit():
+            self.logger.error("Configuration Error: A number for time in seconds is required")
+            errorMsgDict["offDelayValue"] = "Please enter a valid number"
+            return (False, valuesDict, errorMsgDict)
+        
+       	else:
+            return (True, valuesDict)
 
     def isRecursive(self, devId, devName, sensorDevices):
         self.logger.debug(f"isRecursive, devId = {devId}, devName = {devName}, sensorDevices = {sensorDevices}")
@@ -271,11 +300,16 @@ class Plugin(indigo.PluginBase):
             del self.watchList[delDevice.id]
 
     def deviceUpdated(self, oldDevice, newDevice):
-        indigo.PluginBase.deviceUpdated(self, oldDevice, newDevice)
-        if newDevice.id in self.watchList and oldDevice.onState != newDevice.onState:   # only care about onState changes
-            self.logger.debug(f"Watched Device updated: {newDevice.name} is now {newDevice.onState}")
-            for zone in self.watchList[newDevice.id]:
-                self.checkSensors(indigo.devices[zone])
+        indigo.PluginBase.deviceUpdated(self, oldDevice, newDevice)  # this watches every and all Indigo devices for changes
+        if newDevice.id in self.watchList:
+            if hasattr(oldDevice, 'supportsOnState') and oldDevice.onState != newDevice.onState:   # only care about Sensor device onState changes
+                self.logger.debug(u"Watched Sensor Device updated: {} is now {}".format(newDevice.name, newDevice.onState))
+                for zone in self.watchList[newDevice.id]:
+                    self.checkSensors(indigo.devices[zone])
+            elif oldDevice.model == "Alarm Zone" and oldDevice.states['state.open'] != newDevice.states['state.open']:   # only care about DSC motion sensor device state.open changes
+                self.logger.debug(u"Watched DSC Device updated: {} is now {}".format(newDevice.name, newDevice.states['state.open']))
+                for zone in self.watchList[newDevice.id]:
+                    self.checkSensors(indigo.devices[zone])
 
     ################################################################################
     #
@@ -297,6 +331,11 @@ class Plugin(indigo.PluginBase):
         for device in indigo.devices.iter("indigo.sensor"):
             if (unicode(device.id) not in deviceList) and device.supportsOnState:
                 returnList.append((unicode(device.id), device.name))
+
+        for device in indigo.devices:
+            if (unicode(device.id) not in deviceList) and device.model == 'Alarm Zone':
+                if device.ownerProps['zoneType'] == "zoneTypeMotion":
+                    returnList.append((unicode(device.id), device.name))
         return returnList
 
     ########################################
@@ -364,6 +403,10 @@ class Plugin(indigo.PluginBase):
             deviceList = deviceListString.split(",")
 
             for devId in deviceList:
-                if int(devId) in indigo.devices:
-                    returnList.append((devId, indigo.devices[int(devId)].name))
+                try:
+                    if int(devId) in indigo.devices:
+                        returnList.append((devId, indigo.devices[int(devId)].name))
+                except (Exception,):
+                    continue
         return returnList
+

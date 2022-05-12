@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <PluginConfig>
-    <SupportURL>http://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
+    <SupportURL>https://forums.indigodomo.com/viewtopic.php?f=216&amp;t=24528</SupportURL>
     <Field id="logLevel" type="menu" defaultValue="20">
         <Label>Event Logging Level:</Label>
         <List>

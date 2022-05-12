@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <PluginConfig>
-    <SupportURL>http://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
+    <SupportURL>https://github.com/FlyingDiver/Indigo-Occupatum</SupportURL>
     <Field id="logLevel" type="menu" defaultValue="20">
         <Label>Event Logging Level:</Label>
         <List>

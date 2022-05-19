@@ -295,8 +295,8 @@ class Plugin(indigo.PluginBase):
 
         deviceList = valuesDict.get("sensorDevices","").split(",")
         for device in indigo.devices.iter("indigo.sensor"):
-            if (unicode(device.id) not in deviceList) and device.supportsOnState:
-                returnList.append((unicode(device.id), device.name))
+            if (str(device.id) not in deviceList) and device.supportsOnState:
+                returnList.append((str(device.id), device.name))
         return returnList
 
     ########################################

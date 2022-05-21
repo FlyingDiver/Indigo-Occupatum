@@ -220,23 +220,36 @@ class Plugin(indigo.PluginBase):
     ########################################
 
     def validateDeviceConfigUi(self, valuesDict, typeId, devId):
-        self.logger.debug(u"validateDeviceConfigUi, devId={}, typeId={}, valuesDict = {}".format(devId, typeId, valuesDict))
+        self.logger.debug("validateDeviceConfigUi, devId={}, typeId={}, valuesDict = {}".format(devId, typeId, valuesDict))
         errorMsgDict = indigo.Dict()
         
         sensorDevices = valuesDict.get('sensorDevices', None)
         if len(sensorDevices) == 0:
             self.logger.error("Configuration Error: No sensors specified.")
-            errorMsgDict[u"sensorDevices"] = u"Empty Sensor List"
+            errorMsgDict["sensorDevices"] = "Empty Sensor List"
             return False, valuesDict, errorMsgDict
             
         elif self.isRecursive(devId,  indigo.devices[devId].name, sensorDevices):
             self.logger.error("Configuration Error: Sensor Recursion Detected")
-            errorMsgDict[u"sensorDevices"] = "Sensor Recursion Detected"
+            errorMsgDict["sensorDevices"] = "Sensor Recursion Detected"
             return False, valuesDict, errorMsgDict
-        elif valuesDict.get("onSensorsOnOff", None) == "change" and (valuesDict.get("forceOffValue", "") == "" or int(valuesDict.get("forceOffValue", "0")) == 0):
-            self.logger.error("Configuration Error: Force Off required for 'Any Change' sensors")
-            errorMsgDict["forceOffValue"] = u"Force Off required for 'Any Change' sensors"
+
+        elif valuesDict.get("onSensorsOnOff", None) == "change" and \
+                (valuesDict.get("forceOffValue", "") == "" or (valuesDict.get("forceOffValue", "0")) == "0" or not (valuesDict.get("forceOffValue", "")).isdigit()):
+            self.logger.error("Configuration Error: Force Off valid number required for 'Either (Any Change)' sensors")
+            errorMsgDict["forceOffValue"] = "Force Off valid number required for 'Either (Any Change)' sensors"
             return False, valuesDict, errorMsgDict
+
+        elif not (valuesDict.get("onDelayValue", "")).isdigit():
+            self.logger.error("Configuration Error: A number for time in seconds is required")
+            errorMsgDict["onDelayValue"] = "Please enter a valid number"
+            return False, valuesDict, errorMsgDict
+
+        elif not (valuesDict.get("offDelayValue", "")).isdigit():
+            self.logger.error("Configuration Error: A number for time in seconds is required")
+            errorMsgDict["offDelayValue"] = "Please enter a valid number"
+            return False, valuesDict, errorMsgDict
+
         else:
             return True, valuesDict
 
@@ -319,7 +332,7 @@ class Plugin(indigo.PluginBase):
                 selectedDevicesString += "," + str(deviceId)
 
             valuesDict["sensorDevices"] = selectedDevicesString
-            self.logger.debug(u"valuesDict = {}".format(valuesDict))
+            self.logger.debug("valuesDict = {}".format(valuesDict))
 
             if "sensorDeviceList" in valuesDict:
                 del valuesDict["sensorDeviceList"]
@@ -354,16 +367,19 @@ class Plugin(indigo.PluginBase):
     # This is the method that's called to build the sensor list for this device. Note that valuesDict is read-only.
     ########################################
     def sensorDeviceList(self, filter="", valuesDict=None, typeId="", targetId=0):
-        self.logger.debug(u"sensorDeviceList called, targetId={}, typeId={}, filter={}, valuesDict = {}".format(targetId, typeId, filter, valuesDict))
+        self.logger.debug(f"sensorDeviceList called, targetId={targetId}, typeId={typeId}, filter={filter}, valuesDict = {valuesDict}")
 
         returnList = list()
 
         if valuesDict and "sensorDevices" in valuesDict:
             deviceListString = valuesDict["sensorDevices"]
-            self.logger.debug(u"deviceListString: {}".format(deviceListString))
+            self.logger.debug(f"deviceListString: {deviceListString}")
             deviceList = deviceListString.split(",")
 
             for devId in deviceList:
-                if int(devId) in indigo.devices:
-                    returnList.append((devId, indigo.devices[int(devId)].name))
+                try:
+                    if int(devId) in indigo.devices:
+                        returnList.append((devId, indigo.devices[int(devId)].name))
+                except (Exception,):
+                    continue
         return returnList

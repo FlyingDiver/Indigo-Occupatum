@@ -61,6 +61,18 @@
                 <Label>Leave blank for no Forced Off.  Required if "Any Change" is used</Label>
             </Field>
        </ConfigUI>
+	    <States>
+			<State id="delay_timer">
+				<ValueType>Number</ValueType>
+				<TriggerLabel>Delay Timer</TriggerLabel>
+				<ControlPageLabel>Delay Timer</ControlPageLabel>
+			</State>
+			<State id="force_off_timer">
+				<ValueType>Number</ValueType>
+				<TriggerLabel>Force Off Timer</TriggerLabel>
+				<ControlPageLabel>Force Off Timer</ControlPageLabel>
+			</State>
+		</States>
     </Device>
 </Devices>
  

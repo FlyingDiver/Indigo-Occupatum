@@ -23,6 +23,7 @@ class Plugin(indigo.PluginBase):
         self.logger.debug(f"logLevel = {self.logLevel}")
 
         self.zoneList = {}
+        self.activityZoneList = {}
         self.watchList = {}
         self.delayTimers = {}
         self.forceTimers = {}
@@ -52,29 +53,36 @@ class Plugin(indigo.PluginBase):
         if newDevice.id in self.watchList and oldDevice.onState != newDevice.onState:  # only care about onState changes
             self.logger.debug(f"Watched Device updated: {newDevice.name} is now {newDevice.onState}")
             for zone in self.watchList[newDevice.id]:
-                self.checkSensors(indigo.devices[zone])
+                self.checkSensors(indigo.devices[zone], newDevice.onState)
 
     def runConcurrentThread(self):
         try:
             while True:
                 for zoneDevID in self.zoneList:
+                    zoneDevice = indigo.devices[zoneDevID]
+
                     if zoneDevID in self.delayTimers:
-                        device = indigo.devices[zoneDevID]
                         timerEnd, occupied = self.delayTimers[zoneDevID]
                         duration = timerEnd - time.time()
-                        device.updateStateOnServer(key='delay_timer', value=duration)
-                        device.updateStateOnServer(key='onOffState', value=device.onState, uiValue=f"Delay {duration:.1f}")
+                        zoneDevice.updateStateOnServer(key='delay_timer', value=duration)
+                        zoneDevice.updateStateOnServer(key='onOffState', value=device.onState, uiValue=f"Delay {duration:.1f}")
                         if timerEnd <= time.time():
-                            self.delayTimerComplete(device, occupied)
+                            self.delayTimerComplete(zoneDevice, occupied)
 
                     if zoneDevID in self.forceTimers:
-                        device = indigo.devices[zoneDevID]
                         timerEnd = self.forceTimers[zoneDevID]
                         duration = timerEnd - time.time()
-                        device.updateStateOnServer(key='force_off_timer', value=duration)
-                        device.updateStateOnServer(key='onOffState', value=device.onState, uiValue=f"Force Off {duration:.1f}")
+                        zoneDevice.updateStateOnServer(key='force_off_timer', value=duration)
+                        zoneDevice.updateStateOnServer(key='onOffState', value=device.onState, uiValue=f"Force Off {duration:.1f}")
                         if timerEnd <= time.time():
-                            self.forceOffTimerComplete(device)
+                            self.forceOffTimerComplete(zoneDevice)
+
+                    expired = time.time() - float(zoneDevice.pluginProps.get("activityWindow", 0))
+                    if zoneDevID in self.activityZoneList:      # remove expired time hacks
+                        if len(self.activityZoneList[zoneDevID]) and (self.activityZoneList[zoneDevID][0] < expired):
+                            self.activityZoneList[zoneDevID].pop(0)
+                            self.logger.debug(f"{zoneDevice.name}: checkSensors activityZone, deleted time hack")
+                            self.checkSensors(zoneDevice, False)
 
                 self.sleep(1.0)
         except self.StopThread:
@@ -82,36 +90,59 @@ class Plugin(indigo.PluginBase):
 
     def deviceStartComm(self, device):
         self.logger.info(f"{device.name}: Starting Device")
-        device.updateStateOnServer(key='onOffState', value=False)
-        device.updateStateOnServer(key='delay_timer', value=0.0)
-        device.updateStateOnServer(key='force_off_timer', value=0.0)
-        device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
 
-        device.stateListOrDisplayStateIdChanged()
+        if device.deviceTypeId == 'area':
 
-        sensorsInZone = [int(x) for x in device.pluginProps.get("sensorDevices", "").split(",")]
-        self.logger.debug(f"{device.name}: Zone {device.id} uses sensor devices: {sensorsInZone}")
+            sharedProps = device.sharedProps
+            sharedProps["sqlLoggerIgnoreStates"] = "delay_timer,force_off_timer"
+            device.replaceSharedPropsOnServer(sharedProps)
 
-        for sensor in sensorsInZone:
-            if sensor not in self.watchList:
-                self.watchList[sensor] = list()
-            self.watchList[sensor].append(device.id)
+            device.updateStateOnServer(key='onOffState', value=False)
+            device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
 
-        self.logger.debug(f"{device.name}: watchList updated: {self.watchList}")
+            device.stateListOrDisplayStateIdChanged()
 
-        assert device.id not in self.zoneList
-        self.zoneList[device.id] = sensorsInZone
+            sensorsInZone = [int(x) for x in device.pluginProps.get("sensorDevices", "").split(",")]
+            self.logger.debug(f"{device.name}: Zone {device.id} uses sensor devices: {sensorsInZone}")
+
+            for sensor in sensorsInZone:
+                if sensor not in self.watchList:
+                    self.watchList[sensor] = list()
+                self.watchList[sensor].append(device.id)
+
+            self.logger.debug(f"{device.name}: watchList updated: {self.watchList}")
+
+            assert device.id not in self.zoneList
+            self.zoneList[device.id] = sensorsInZone
+
+        elif device.deviceTypeId == 'activityZone':
+
+            device.updateStateOnServer(key='onOffState', value=False)
+            device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
+
+            sensorsInZone = [int(x) for x in device.pluginProps.get("sensorDevices", "").split(",")]
+            self.logger.debug(f"{device.name}: Zone {device.id} uses sensor devices: {sensorsInZone}")
+
+            for sensor in sensorsInZone:
+                if sensor not in self.watchList:
+                    self.watchList[sensor] = list()
+                self.watchList[sensor].append(device.id)
+
+            self.logger.debug(f"{device.name}: watchList updated: {self.watchList}")
+
+            assert device.id not in self.zoneList
+            self.zoneList[device.id] = sensorsInZone    # list of indigo device IDs that are sensors for this zone
+            self.activityZoneList[device.id] = []       # list of time hacks that sensor on updates occurred
+
+        else:
+            self.logger.warning(f"{device.name}: deviceStartComm: Invalid device type: {device.deviceTypeId}")
+            return
 
         # update the state
-        self.checkSensors(device)
+        self.checkSensors(device, False)
 
     def deviceStopComm(self, device):
         self.logger.info(f"{device.name}: Stopping Device")
-
-        device.updateStateOnServer(key='onOffState', value=False)
-        device.updateStateOnServer(key='delay_timer', value=0.0)
-        device.updateStateOnServer(key='force_off_timer', value=0.0)
-        device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
 
         # need to remove this sensor from the watch lists
         sensorsInZone = [int(x) for x in device.pluginProps.get("sensorDevices", "").split(",")]
@@ -132,46 +163,60 @@ class Plugin(indigo.PluginBase):
         assert device.id in self.zoneList
         del self.zoneList[device.id]
 
-    def checkSensors(self, zoneDevice):
+    def checkSensors(self, zoneDevice, sensorState):
 
-        onSensorsOnOff = zoneDevice.pluginProps.get("onSensorsOnOff", "on")
-        if onSensorsOnOff == 'change':
-            occupiedList = [True for x in self.zoneList[zoneDevice.id]]
-        elif onSensorsOnOff == 'on':
-            occupiedList = [indigo.devices[x].onState for x in self.zoneList[zoneDevice.id]]
-        else:
-            occupiedList = [not indigo.devices[x].onState for x in self.zoneList[zoneDevice.id]]
+        if zoneDevice.deviceTypeId == 'area':
 
-        onAnyAll = zoneDevice.pluginProps.get("onAnyAll", "all")
-        if onAnyAll == 'all':
-            occupied = all(occupiedList)
-        else:
-            occupied = any(occupiedList)
+            onSensorsOnOff = zoneDevice.pluginProps.get("onSensorsOnOff", "on")
+            if onSensorsOnOff == 'change':
+                occupiedList = [True for x in self.zoneList[zoneDevice.id]]
+            elif onSensorsOnOff == 'on':
+                occupiedList = [indigo.devices[x].onState for x in self.zoneList[zoneDevice.id]]
+            else:
+                occupiedList = [not indigo.devices[x].onState for x in self.zoneList[zoneDevice.id]]
 
-        previous = zoneDevice.onState
+            onAnyAll = zoneDevice.pluginProps.get("onAnyAll", "all")
+            if onAnyAll == 'all':
+                occupied = all(occupiedList)
+            else:
+                occupied = any(occupiedList)
 
-        self.logger.debug(
-            f"{zoneDevice.name}: checkSensors, onSensorsOnOff = {onSensorsOnOff}, onAnyAll = {onAnyAll}, sensors: {self.zoneList[zoneDevice.id]}")
+            previous = zoneDevice.onState
 
-        if occupied:
-            delay = float(zoneDevice.pluginProps.get("onDelayValue", "0"))
-        else:
-            delay = float(zoneDevice.pluginProps.get("offDelayValue", "0"))
+            self.logger.debug(
+                f"{zoneDevice.name}: checkSensors, onSensorsOnOff = {onSensorsOnOff}, onAnyAll = {onAnyAll}, sensors: {self.zoneList[zoneDevice.id]}")
 
-        self.logger.debug(f"{zoneDevice.name}: checkSensors, occupied = {occupied}, previous = {previous}, delay = {delay}")
+            if occupied:
+                delay = float(zoneDevice.pluginProps.get("onDelayValue", "0"))
+            else:
+                delay = float(zoneDevice.pluginProps.get("offDelayValue", "0"))
 
-        # start a timer with the specified delay
-        self.delayTimers[zoneDevice.id] = ((time.time() + delay), occupied)
-        self.logger.debug(f"{zoneDevice.name}: checkSensors, adding delay timer with value = {delay}, occupied = {occupied}")
-        zoneDevice.updateStateOnServer(key='onOffState', value=previous, uiValue=f"Delay {delay:.1f}")
-        zoneDevice.updateStateOnServer(key='delay_timer', value=delay)
+            self.logger.debug(f"{zoneDevice.name}: checkSensors, occupied = {occupied}, previous = {previous}, delay = {delay}")
 
-        forceOff = zoneDevice.pluginProps.get("forceOffValue", None)
-        if forceOff.isdigit() and float(forceOff) > 0.0:
-            self.forceTimers[zoneDevice.id] = time.time() + float(forceOff)
-            self.logger.debug(f"{zoneDevice.name}: checkSensors, starting force timer with value = {forceOff}")
-            zoneDevice.updateStateOnServer(key='onOffState', value=previous, uiValue=f"Force Off  {float(forceOff):.1f}")
-            zoneDevice.updateStateOnServer(key='force_off_timer', value=float(forceOff))
+            # start a timer with the specified delay
+            self.delayTimers[zoneDevice.id] = ((time.time() + delay), occupied)
+            self.logger.debug(f"{zoneDevice.name}: checkSensors, adding delay timer with value = {delay}, occupied = {occupied}")
+            zoneDevice.updateStateOnServer(key='onOffState', value=previous, uiValue=f"Delay {delay:.1f}")
+            zoneDevice.updateStateOnServer(key='delay_timer', value=delay)
+
+            forceOff = zoneDevice.pluginProps.get("forceOffValue", None)
+            if forceOff.isdigit() and float(forceOff) > 0.0:
+                self.forceTimers[zoneDevice.id] = time.time() + float(forceOff)
+                self.logger.debug(f"{zoneDevice.name}: checkSensors, starting force timer with value = {forceOff}")
+                zoneDevice.updateStateOnServer(key='onOffState', value=previous, uiValue=f"Force Off  {float(forceOff):.1f}")
+                zoneDevice.updateStateOnServer(key='force_off_timer', value=float(forceOff))
+
+        elif zoneDevice.deviceTypeId == 'activityZone':
+
+            if sensorState:
+                # add another time hack to list
+                self.activityZoneList[zoneDevice.id].append(time.time())
+                self.logger.debug(f"{zoneDevice.name}: checkSensors activityZone, added time hack. {len(self.activityZoneList[zoneDevice.id])} total")
+
+            occupied = len(self.activityZoneList[zoneDevice.id]) >= int(zoneDevice.pluginProps.get("activityCount", 0))
+            self.logger.debug(f"{zoneDevice.name}: checkSensors activityZone, occupied = {occupied}")
+            zoneDevice.updateStateOnServer(key='onOffState', value=occupied, uiValue=("on" if occupied else "off"))
+            zoneDevice.updateStateImageOnServer(indigo.kStateImageSel.MotionSensorTripped if occupied else indigo.kStateImageSel.MotionSensor)
 
     def delayTimerComplete(self, device, occupied):
         self.logger.debug(f"{device.name}: delayTimerComplete, occupied = {occupied}")
@@ -263,7 +308,7 @@ class Plugin(indigo.PluginBase):
     ########################################
 
     def validateDeviceConfigUi(self, valuesDict, typeId, devId):
-        self.logger.threaddebug("validateDeviceConfigUi, devId={}, typeId={}, valuesDict = {}".format(devId, typeId, valuesDict))
+        self.logger.debug("validateDeviceConfigUi, devId={}, typeId={}, valuesDict = {}".format(devId, typeId, valuesDict))
         errorMsgDict = indigo.Dict()
 
         sensorDevices = valuesDict.get('sensorDevices', None)
@@ -272,30 +317,43 @@ class Plugin(indigo.PluginBase):
             errorMsgDict["sensorDevices"] = "Empty Sensor List"
             return False, valuesDict, errorMsgDict
 
-        elif self.isRecursive(devId, indigo.devices[devId].name, sensorDevices):
+        if self.isRecursive(devId, indigo.devices[devId].name, sensorDevices):
             self.logger.error("Configuration Error: Sensor Recursion Detected")
             errorMsgDict["sensorDevices"] = "Sensor Recursion Detected"
             return False, valuesDict, errorMsgDict
 
-        elif valuesDict.get("onSensorsOnOff", None) == "change" and \
-                (valuesDict.get("forceOffValue", "") == "" or (valuesDict.get("forceOffValue", "0")) == "0" or not (
-                        valuesDict.get("forceOffValue", "")).isdigit()):
-            self.logger.error("Configuration Error: Force Off valid number required for 'Either (Any Change)' sensors")
-            errorMsgDict["forceOffValue"] = "Force Off valid number required for 'Either (Any Change)' sensors"
-            return False, valuesDict, errorMsgDict
+        if typeId == 'area':
 
-        elif not (valuesDict.get("onDelayValue", "")).isdigit():
-            self.logger.error("Configuration Error: A number for time in seconds is required")
-            errorMsgDict["onDelayValue"] = "Please enter a valid number"
-            return False, valuesDict, errorMsgDict
+            if valuesDict.get("onSensorsOnOff", None) == "change" and \
+                    (valuesDict.get("forceOffValue", "") == "" or (valuesDict.get("forceOffValue", "0")) == "0" or not (
+                            valuesDict.get("forceOffValue", "")).isdigit()):
+                self.logger.error("Configuration Error: Force Off valid number required for 'Either (Any Change)' sensors")
+                errorMsgDict["forceOffValue"] = "Force Off valid number required for 'Either (Any Change)' sensors"
+                return False, valuesDict, errorMsgDict
 
-        elif not (valuesDict.get("offDelayValue", "")).isdigit():
-            self.logger.error("Configuration Error: A number for time in seconds is required")
-            errorMsgDict["offDelayValue"] = "Please enter a valid number"
-            return False, valuesDict, errorMsgDict
+            if not (valuesDict.get("onDelayValue", "")).isdigit():
+                self.logger.error("Configuration Error: A number for time in seconds is required")
+                errorMsgDict["onDelayValue"] = "Please enter a valid number"
+                return False, valuesDict, errorMsgDict
 
-        else:
-            return True, valuesDict
+            if not (valuesDict.get("offDelayValue", "")).isdigit():
+                self.logger.error("Configuration Error: A number for time in seconds is required")
+                errorMsgDict["offDelayValue"] = "Please enter a valid number"
+                return False, valuesDict, errorMsgDict
+
+        elif typeId == 'activityZone':
+
+            if not (valuesDict.get("activityWindow", "")).isdigit():
+                self.logger.error("Configuration Error: A number for time in seconds is required")
+                errorMsgDict["activityWindow"] = "Please enter a valid number"
+                return False, valuesDict, errorMsgDict
+
+            if not (valuesDict.get("activityCount", "")).isdigit():
+                self.logger.error("Configuration Error: A number for time in seconds is required")
+                errorMsgDict["activityCount"] = "Please enter a valid number"
+                return False, valuesDict, errorMsgDict
+
+        return True, valuesDict
 
     def isRecursive(self, devId, devName, sensorDevices):
         self.logger.debug(f"isRecursive, devId = {devId}, devName = {devName}, sensorDevices = {sensorDevices}")

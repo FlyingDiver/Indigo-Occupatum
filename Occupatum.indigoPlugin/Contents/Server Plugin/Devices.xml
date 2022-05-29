@@ -1,13 +1,57 @@
 <?xml version="1.0"?>
 <Devices>
-    <Device type="sensor" id="area">
-        <Name>Occupancy Zone</Name>
+    <Device type="sensor" id="activityZone">
+        <Name>Activity Zone</Name>
         <ConfigUI>            
 			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
 			<Field id="SupportsSensorValue" type="checkbox" defaultValue="false" hidden="true" />
             <Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
+ 			<Field id="sensorDevices" type="textfield" hidden="true"/>
+
+            <Field id="sensorDeviceMenu" type="menu">
+	            <Label>Sensor Device to Add:</Label>
+	            <List class="self" method="sensorDevices" dynamicReload="true"/>
+            </Field>
+            <Field id="addDevice" type="button">
+                <Label/>
+                <Title>Add Device</Title>
+                <CallbackMethod>addDevice</CallbackMethod>
+            </Field>
+            <Field id="space1" type="label"><Label/></Field>
+            <Field id="sensorDeviceList" type="list" rows="6">
+                <Label>Included sensors:</Label>
+                <List class="self" method="sensorDeviceList" dynamicReload="true"/>
+            </Field>
+            <Field id="deleteDevices" type="button">
+                <Label/>
+                <Title>Delete Devices</Title>
+                <CallbackMethod>deleteDevices</CallbackMethod>
+            </Field>
+            <Field id="space2" type="label"><Label/></Field>
+            <Field id="separator1" type="separator"/>
+            <Field id="space3" type="label"><Label/></Field>
+            <Field id="activityWindow" type="textfield">
+                <Label>Time Window for activations (seconds):</Label>
+        	</Field>
+            <Field id="activityWindow_help" type="label" fontSize="mini" alignWithControl="true">
+                <Label>Lookback Period for activations.  Only sensor activations during this period will count.</Label>
+            </Field>
+            <Field id="activityCount" type="textfield">
+                <Label>Activations required:</Label>
+        	</Field>
+            <Field id="activityCount_help" type="label" fontSize="mini" alignWithControl="true">
+                <Label>How many sensor activations in Lookback Period required for zone to be Occupied.</Label>
+        	</Field>
+        </ConfigUI>
+   </Device>
+    <Device type="sensor" id="area">
+        <Name>Occupancy Zone</Name>
+        <ConfigUI>
+			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
+			<Field id="SupportsSensorValue" type="checkbox" defaultValue="false" hidden="true" />
+            <Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
 			<Field id="sensorDevices" type="textfield" hidden="true"/>
-			
+
             <Field id="sensorDeviceMenu" type="menu">
 	            <Label>Sensor Device to Add:</Label>
 	            <List class="self" method="sensorDevices" dynamicReload="true"/>
@@ -61,6 +105,18 @@
                 <Label>Leave blank for no Forced Off.  Required if "Any Change" is used</Label>
             </Field>
        </ConfigUI>
+	    <States>
+			<State id="delay_timer">
+				<ValueType>Number</ValueType>
+				<TriggerLabel>Delay Timer</TriggerLabel>
+				<ControlPageLabel>Delay Timer</ControlPageLabel>
+			</State>
+			<State id="force_off_timer">
+				<ValueType>Number</ValueType>
+				<TriggerLabel>Force Off Timer</TriggerLabel>
+				<ControlPageLabel>Force Off Timer</ControlPageLabel>
+			</State>
+		</States>
     </Device>
 </Devices>
  

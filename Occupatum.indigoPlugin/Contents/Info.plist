@@ -8,6 +8,8 @@
     <string>3.0</string>
     <key>IwsApiVersion</key>
     <string>1.0.0</string>
+    <key>LoadPriority</key>
+	<integer>101</integer>
     <key>CFBundleName</key>
     <string>Occupatum</string>
     <key>CFBundleDisplayName</key>

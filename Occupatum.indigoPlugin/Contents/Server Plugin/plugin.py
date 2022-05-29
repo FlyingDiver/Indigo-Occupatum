@@ -65,7 +65,7 @@ class Plugin(indigo.PluginBase):
                         timerEnd, occupied = self.delayTimers[zoneDevID]
                         duration = timerEnd - time.time()
                         zoneDevice.updateStateOnServer(key='delay_timer', value=duration)
-                        zoneDevice.updateStateOnServer(key='onOffState', value=device.onState, uiValue=f"Delay {duration:.1f}")
+                        zoneDevice.updateStateOnServer(key='onOffState', value=zoneDevice.onState, uiValue=f"Delay {duration:.1f}")
                         if timerEnd <= time.time():
                             self.delayTimerComplete(zoneDevice, occupied)
 
@@ -73,7 +73,7 @@ class Plugin(indigo.PluginBase):
                         timerEnd = self.forceTimers[zoneDevID]
                         duration = timerEnd - time.time()
                         zoneDevice.updateStateOnServer(key='force_off_timer', value=duration)
-                        zoneDevice.updateStateOnServer(key='onOffState', value=device.onState, uiValue=f"Force Off {duration:.1f}")
+                        zoneDevice.updateStateOnServer(key='onOffState', value=zoneDevice.onState, uiValue=f"Force Off {duration:.1f}")
                         if timerEnd <= time.time():
                             self.forceOffTimerComplete(zoneDevice)
 

@@ -199,7 +199,7 @@ class Plugin(indigo.PluginBase):
             zoneDevice.updateStateOnServer(key='onOffState', value=previous, uiValue=f"Delay {delay:.1f}")
             zoneDevice.updateStateOnServer(key='delay_timer', value=delay)
 
-            forceOff = zoneDevice.pluginProps.get("forceOffValue", None)
+            forceOff = zoneDevice.pluginProps.get("forceOffValue", "0")
             if forceOff.isdigit() and float(forceOff) > 0.0:
                 self.forceTimers[zoneDevice.id] = time.time() + float(forceOff)
                 self.logger.debug(f"{zoneDevice.name}: checkSensors, starting force timer with value = {forceOff}")

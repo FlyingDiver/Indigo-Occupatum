@@ -213,13 +213,13 @@ class Plugin(indigo.PluginBase):
                 self.activityZoneList[zoneDevice.id].append(time.time())
                 self.logger.debug(f"{zoneDevice.name}: checkSensors activityZone, added time hack. {len(self.activityZoneList[zoneDevice.id])} total")
 
-            previous = device.onState
+            previous = zoneDevice.onState
             occupied = len(self.activityZoneList[zoneDevice.id]) >= int(zoneDevice.pluginProps.get("activityCount", 0))
             self.logger.debug(f"{zoneDevice.name}: checkSensors activityZone, occupied = {occupied}")
             if previous != occupied:
                 zoneDevice.updateStateOnServer(key='onOffState', value=occupied, uiValue=("on" if occupied else "off"))
                 zoneDevice.updateStateImageOnServer(indigo.kStateImageSel.MotionSensorTripped if occupied else indigo.kStateImageSel.MotionSensor)
-                self.checkTriggers(device, occupied)
+                self.checkTriggers(zoneDevice, occupied)
 
     def delayTimerComplete(self, device, occupied):
         self.logger.debug(f"{device.name}: delayTimerComplete, occupied = {occupied}")

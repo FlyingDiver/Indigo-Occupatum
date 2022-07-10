@@ -78,7 +78,7 @@ class Plugin(indigo.PluginBase):
                             self.forceOffTimerComplete(zoneDevice)
 
                     expired = time.time() - float(zoneDevice.pluginProps.get("activityWindow", 0))
-                    if zoneDevID in self.activityZoneList:      # remove expired time hacks
+                    if zoneDevID in self.activityZoneList:  # remove expired time hacks
                         if len(self.activityZoneList[zoneDevID]) and (self.activityZoneList[zoneDevID][0] < expired):
                             self.activityZoneList[zoneDevID].pop(0)
                             self.logger.debug(f"{zoneDevice.name}: checkSensors activityZone, deleted time hack")
@@ -131,8 +131,8 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(f"{device.name}: watchList updated: {self.watchList}")
 
             assert device.id not in self.zoneList
-            self.zoneList[device.id] = sensorsInZone    # list of indigo device IDs that are sensors for this zone
-            self.activityZoneList[device.id] = []       # list of time hacks that sensor on updates occurred
+            self.zoneList[device.id] = sensorsInZone  # list of indigo device IDs that are sensors for this zone
+            self.activityZoneList[device.id] = []  # list of time hacks that sensor on updates occurred
 
         else:
             self.logger.warning(f"{device.name}: deviceStartComm: Invalid device type: {device.deviceTypeId}")
@@ -288,6 +288,23 @@ class Plugin(indigo.PluginBase):
     # Action methods
     ########################################
 
+    def getActionConfigUiValues(self, actionProps, typeId, devId):
+        self.logger.debug(f"getActionConfigUiValues, actionProps = {actionProps}, typeId = {typeId}, devId = {devId}")
+        device = indigo.devices[devId]
+        if typeId == "updateActivityZone":
+            if 'activityCount' not in actionProps:
+                actionProps["activityCount"] = device.pluginProps['activityCount']
+            if 'activityWindow' not in actionProps:
+                actionProps["activityWindow"] = device.pluginProps['activityWindow']
+        elif typeId == "updateOccupancyZone":
+            if 'onDelayValue' not in actionProps:
+                actionProps["onDelayValue"] = device.pluginProps['onDelayValue']
+            if 'offDelayValue' not in actionProps:
+                actionProps["offDelayValue"] = device.pluginProps['offDelayValue']
+            if 'forceOffValue' not in actionProps:
+                actionProps["forceOffValue"] = device.pluginProps['forceOffValue']
+        return actionProps
+
     def cancelTimer(self, pluginAction, zoneDevice):
         if zoneDevice.id in self.delayTimers:
             del self.delayTimers[zoneDevice.id]
@@ -302,17 +319,17 @@ class Plugin(indigo.PluginBase):
 
     def updateActivityZone(self, pluginAction, zoneDevice):
         self.logger.debug(f"updateActivityZone, zoneDevice={zoneDevice.id}, pluginAction={pluginAction}")
-        props = zoneDevice.props
+        props = zoneDevice.pluginProps
         props["activityCount"] = pluginAction.props["activityCount"]
-        props["activityTime"] = pluginAction.props["activityTime"]
+        props["activityWindow"] = pluginAction.props["activityWindow"]
         zoneDevice.replacePluginPropsOnServer(props)
 
     def updateOccupancyZone(self, pluginAction, zoneDevice):
         self.logger.debug(f"updateOccupancyZone, zoneDevice={zoneDevice.id}, pluginAction={pluginAction}")
-        props = zoneDevice.props
+        props = zoneDevice.pluginProps
         props["onDelayValue"] = pluginAction.props["onDelayValue"]
         props["offDelayValue"] = pluginAction.props["offDelayValue"]
-        props["forceDelayValue"] = pluginAction.props["forceDelayValue"]
+        props["forceOffValue"] = pluginAction.props["forceOffValue"]
         zoneDevice.replacePluginPropsOnServer(props)
 
     ########################################
@@ -447,7 +464,7 @@ class Plugin(indigo.PluginBase):
             return valuesDict
 
     ########################################
-    # This is the method that's called by the Delete Device button in the scene device config UI.
+    # This is the method that's called by the Device button in the scene device config UI.
     ########################################
     def deleteDevices(self, valuesDict, typeId, devId):
         self.logger.debug(f"deleteDevices called, devId={devId}, typeId={typeId}, valuesDict = {valuesDict}")

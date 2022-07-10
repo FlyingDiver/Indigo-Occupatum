@@ -1,17 +1,53 @@
 <?xml version="1.0"?>
 <Actions>
-	<Action id="cancelTimer" deviceFilter="self.area">
-		<Name>Cancel Timer for Zone</Name>
-		<CallbackMethod>cancelTimer</CallbackMethod>
+    <Action id="cancelTimer" deviceFilter="self.area">
+        <Name>Cancel Timer for Zone</Name>
+        <CallbackMethod>cancelTimer</CallbackMethod>
         <ConfigUI>
             <Field id="state" type="menu">
                 <Label>Zone State:</Label>
-        		<List>
-        			<Option value="on">On</Option>
-        			<Option value="off">Off</Option>
-        			<Option value="unchanged">Unchanged</Option>
-        		</List>
+                <List>
+                    <Option value="on">On</Option>
+                    <Option value="off">Off</Option>
+                    <Option value="unchanged">Unchanged</Option>
+                </List>
             </Field>
         </ConfigUI>
-	</Action>
+    </Action>
+    <Action id="updateActivityZone" deviceFilter="self.activityZone">
+        <Name>Update Activity Zone</Name>
+        <CallbackMethod>updateActivityZone</CallbackMethod>
+        <ConfigUI>
+          <Field id="activityWindow" type="textfield">
+                <Label>Time Window for activations (seconds):</Label>
+            </Field>
+            <Field id="activityWindow_help" type="label" fontSize="mini" alignWithControl="true">
+                <Label>Lookback Period for activations.  Only sensor activations during this period will count.</Label>
+            </Field>
+            <Field id="activityCount" type="textfield">
+                <Label>Activations required:</Label>
+            </Field>
+            <Field id="activityCount_help" type="label" fontSize="mini" alignWithControl="true">
+                <Label>How many sensor activations in Lookback Period required for zone to be Occupied.</Label>
+            </Field>
+        </ConfigUI>
+    </Action>
+    <Action id="updateOccupancyZone" deviceFilter="self.area">
+        <Name>Update Occupancy Zone</Name>
+        <CallbackMethod>updateOccupancyZone</CallbackMethod>
+        <ConfigUI>
+            <Field id="onDelayValue" type="textfield" defaultValue="0">
+                <Label>Delay On by (Seconds):</Label>
+            </Field>
+            <Field id="offDelayValue" type="textfield" defaultValue="0">
+                <Label>Delay Off by (Seconds):</Label>
+            </Field>
+            <Field id="forceOffValue" type="textfield" defaultValue="">
+                <Label>Force Off after (Seconds):</Label>
+            </Field>
+            <Field id="forceOffValue_help" type="label" fontSize="mini" alignWithControl="true">
+                <Label>Leave blank for no Forced Off.  Required if "Any Change" is used</Label>
+            </Field>
+        </ConfigUI>
+    </Action>
 </Actions>

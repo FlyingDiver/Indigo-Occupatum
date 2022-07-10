@@ -284,6 +284,10 @@ class Plugin(indigo.PluginBase):
                 else:
                     self.logger.error(f"{trigger.name}: Unknown Trigger Type {trigger.pluginTypeId}")
 
+    ########################################
+    # Action methods
+    ########################################
+
     def cancelTimer(self, pluginAction, zoneDevice):
         if zoneDevice.id in self.delayTimers:
             del self.delayTimers[zoneDevice.id]
@@ -295,6 +299,21 @@ class Plugin(indigo.PluginBase):
         zoneDevice.updateStateOnServer(key='delay_timer', value=0.0)
         zoneDevice.updateStateOnServer(key='onOffState', value=occupied, uiValue=("on" if occupied else "off"))
         zoneDevice.updateStateImageOnServer(indigo.kStateImageSel.MotionSensorTripped if occupied else indigo.kStateImageSel.MotionSensor)
+
+    def updateActivityZone(self, pluginAction, zoneDevice):
+        self.logger.debug(f"updateActivityZone, zoneDevice={zoneDevice.id}, pluginAction={pluginAction}")
+        props = zoneDevice.props
+        props["activityCount"] = pluginAction.props["activityCount"]
+        props["activityTime"] = pluginAction.props["activityTime"]
+        zoneDevice.replacePluginPropsOnServer(props)
+
+    def updateOccupancyZone(self, pluginAction, zoneDevice):
+        self.logger.debug(f"updateOccupancyZone, zoneDevice={zoneDevice.id}, pluginAction={pluginAction}")
+        props = zoneDevice.props
+        props["onDelayValue"] = pluginAction.props["onDelayValue"]
+        props["offDelayValue"] = pluginAction.props["offDelayValue"]
+        props["forceDelayValue"] = pluginAction.props["forceDelayValue"]
+        zoneDevice.replacePluginPropsOnServer(props)
 
     ########################################
     # ConfigUI methods

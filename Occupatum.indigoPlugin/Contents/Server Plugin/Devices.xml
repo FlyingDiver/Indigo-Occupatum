@@ -3,14 +3,14 @@
     <Device type="sensor" id="activityZone">
         <Name>Activity Zone</Name>
         <ConfigUI>            
-			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
-			<Field id="SupportsSensorValue" type="checkbox" defaultValue="false" hidden="true" />
+            <Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
+            <Field id="SupportsSensorValue" type="checkbox" defaultValue="false" hidden="true" />
             <Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
- 			<Field id="sensorDevices" type="textfield" hidden="true"/>
+            <Field id="sensorDevices" type="textfield" hidden="true"/>
 
             <Field id="sensorDeviceMenu" type="menu">
-	            <Label>Sensor Device to Add:</Label>
-	            <List class="self" method="sensorDevices" dynamicReload="true"/>
+                <Label>Sensor Device to Add:</Label>
+                <List class="self" method="sensorDevices" dynamicReload="true"/>
             </Field>
             <Field id="addDevice" type="button">
                 <Label/>
@@ -32,29 +32,29 @@
             <Field id="space3" type="label"><Label/></Field>
             <Field id="activityWindow" type="textfield">
                 <Label>Time Window for activations (seconds):</Label>
-        	</Field>
+            </Field>
             <Field id="activityWindow_help" type="label" fontSize="mini" alignWithControl="true">
                 <Label>Lookback Period for activations.  Only sensor activations during this period will count.</Label>
             </Field>
             <Field id="activityCount" type="textfield">
                 <Label>Activations required:</Label>
-        	</Field>
+            </Field>
             <Field id="activityCount_help" type="label" fontSize="mini" alignWithControl="true">
                 <Label>How many sensor activations in Lookback Period required for zone to be Occupied.</Label>
-        	</Field>
+            </Field>
         </ConfigUI>
    </Device>
     <Device type="sensor" id="area">
         <Name>Occupancy Zone</Name>
         <ConfigUI>
-			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
-			<Field id="SupportsSensorValue" type="checkbox" defaultValue="false" hidden="true" />
+            <Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
+            <Field id="SupportsSensorValue" type="checkbox" defaultValue="false" hidden="true" />
             <Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
-			<Field id="sensorDevices" type="textfield" hidden="true"/>
+            <Field id="sensorDevices" type="textfield" hidden="true"/>
 
             <Field id="sensorDeviceMenu" type="menu">
-	            <Label>Sensor Device to Add:</Label>
-	            <List class="self" method="sensorDevices" dynamicReload="true"/>
+                <Label>Sensor Device to Add:</Label>
+                <List class="self" method="sensorDevices" dynamicReload="true"/>
             </Field>
             <Field id="addDevice" type="button">
                 <Label/>
@@ -78,45 +78,45 @@
             
             <Field id="onAnyAll" type="menu" defaultValue="any">
                 <Label>This zone is occupied (On) when:</Label>
-        		<List>
-        			<Option value="all">All</Option>
-        			<Option value="any">Any</Option>
-        		</List>
-        	</Field>
+                <List>
+                    <Option value="all">All</Option>
+                    <Option value="any">Any</Option>
+                </List>
+            </Field>
             <Field id="onSensorsOnOff" type="menu" defaultValue="on">
                 <Label>sensors are:</Label>
-        		<List>
-        			<Option value="on">On</Option>
-        			<Option value="off">Off</Option>
-        			<Option value="change">Either (Any Change)</Option>
-        		</List>
-        	</Field>
+                <List>
+                    <Option value="on">On</Option>
+                    <Option value="off">Off</Option>
+                    <Option value="change">Either (Any Change)</Option>
+                </List>
+            </Field>
             <Field id="space4" type="label"><Label/></Field>
             <Field id="onDelayValue" type="textfield" defaultValue="0">
                 <Label>Delay On by (Seconds):</Label>
-        	</Field>
+            </Field>
             <Field id="offDelayValue" type="textfield" defaultValue="0">
                 <Label>Delay Off by (Seconds):</Label>
-        	</Field>
+            </Field>
             <Field id="forceOffValue" type="textfield" defaultValue="">
                 <Label>Force Off after (Seconds):</Label>
-        	</Field> 
+            </Field>
             <Field id="forceOffValue_help" type="label" fontSize="mini" alignWithControl="true">
                 <Label>Leave blank for no Forced Off.  Required if "Any Change" is used</Label>
             </Field>
        </ConfigUI>
-	    <States>
-			<State id="delay_timer">
-				<ValueType>Number</ValueType>
-				<TriggerLabel>Delay Timer</TriggerLabel>
-				<ControlPageLabel>Delay Timer</ControlPageLabel>
-			</State>
-			<State id="force_off_timer">
-				<ValueType>Number</ValueType>
-				<TriggerLabel>Force Off Timer</TriggerLabel>
-				<ControlPageLabel>Force Off Timer</ControlPageLabel>
-			</State>
-		</States>
+        <States>
+            <State id="delay_timer">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Delay Timer</TriggerLabel>
+                <ControlPageLabel>Delay Timer</ControlPageLabel>
+            </State>
+            <State id="force_off_timer">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Force Off Timer</TriggerLabel>
+                <ControlPageLabel>Force Off Timer</ControlPageLabel>
+            </State>
+        </States>
     </Device>
 </Devices>
  

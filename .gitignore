@@ -133,3 +133,5 @@ dmypy.json
 *.zip
 
 Occupatum.indigoPlugin/.idea/
+
+.idea/

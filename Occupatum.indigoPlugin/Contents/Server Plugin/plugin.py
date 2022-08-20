@@ -403,11 +403,14 @@ class Plugin(indigo.PluginBase):
             reply_dict["errors"] = {"forceOffValue": f"delayTimerComplete, no timer found for device {device.id}"}
         else:
             del self.delayTimers[device.id]
-            occupied = bool(action.props["state"])
             device.updateStateOnServer(key='delay_timer', value=0.0)
-            device.updateStateOnServer(key='onOffState', value=occupied, uiValue=("On" if occupied else "Off"))
-            device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensorTripped if occupied else indigo.kStateImageSel.MotionSensor)
-
+            state = pluginAction.props["state"]
+            if state == "on":
+                device.updateStateOnServer(key='onOffState', value=True, uiValue="On")
+                device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensorTripped)
+            elif state == "off":
+                device.updateStateOnServer(key='onOffState', value=False, uiValue="Off")
+                device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
         return reply_dict
 
     def updateActivityZone(self, action, device, caller_waiting_for_result=None):

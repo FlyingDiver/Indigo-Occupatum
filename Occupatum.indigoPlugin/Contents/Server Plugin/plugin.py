@@ -331,7 +331,7 @@ class Plugin(indigo.PluginBase):
             errors["device"] = "'deviceId' must be included and must represent an existing device"
         if "state" not in props:
             errors["state"] = "'state' parameter is missing"
-        elif int(props["state"]) not in ["on", "off", "unchanged"]:
+        elif props["state"] not in ["on", "off", "unchanged"]:
             errors["state"] = f"{props['state']} must be one of: 'on', 'off', 'unchanged'"
         return (not bool(errors)), errors  # bool(errors) will return False if empty, True if not)
 

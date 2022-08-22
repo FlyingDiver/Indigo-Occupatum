@@ -404,7 +404,7 @@ class Plugin(indigo.PluginBase):
         else:
             del self.delayTimers[device.id]
             device.updateStateOnServer(key='delay_timer', value=0.0)
-            state = pluginAction.props["state"]
+            state = action.props["state"]
             if state == "on":
                 device.updateStateOnServer(key='onOffState', value=True, uiValue="On")
                 device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensorTripped)

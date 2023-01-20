@@ -324,70 +324,64 @@ class Plugin(indigo.PluginBase):
         else:
             return True, values_dict
 
-    @staticmethod
-    def validate_cancel_timer_action(dev_id, props):
+    def validate_cancel_timer_action(self, dev_id, props):
         errors = indigo.Dict()
         if dev_id not in indigo.devices:
             errors["device"] = "'deviceId' must be included and must represent an existing device"
+
         if "state" not in props:
             errors["state"] = "'state' parameter is missing"
         elif props["state"] not in ["on", "off", "unchanged"]:
             errors["state"] = f"{props['state']} must be one of: 'on', 'off', 'unchanged'"
+
+        self.logger.debug(f"validate_update_occupancy_zone_action, errors={errors}")
         return (not bool(errors)), errors  # bool(errors) will return False if empty, True if not)
 
-    @staticmethod
-    def validate_update_activity_zone_action(dev_id, props):
+    def validate_update_activity_zone_action(self, dev_id, props):
         errors = indigo.Dict()
         if dev_id not in indigo.devices:
             errors["device"] = "'deviceId' must be included and must represent an existing device"
+
         try:
-            if "activityWindow" not in props:
-                errors["activityWindow"] = "'activityWindow' must be a positive integer"
-            elif int(props["activityWindow"]) <= 0:
+            if int(props["activityWindow"]) <= 0:
                 errors["activityWindow"] = f"{props['activityWindow']} must be a positive integer"
         except ValueError:
             errors["activityWindow"] = f"{props['activityWindow']} must be a positive integer"
 
         try:
-            if "activityCount" not in props:
-                errors["activityCount"] = "'activityCount' must be a positive integer"
-            elif int(props["activityCount"]) <= 0:
+            if int(props["activityCount"]) <= 0:
                 errors["activityCount"] = f"{props['activityCount']} must be a positive integer"
         except ValueError:
             errors["activityWindow"] = f"{props['activityWindow']} must be a positive integer"
 
+        self.logger.debug(f"validate_update_activity_zone_action, errors={errors}")
         return (not bool(errors)), errors  # bool(errors) will return False if empty, True if not)
 
-    @staticmethod
-    def validate_update_occupancy_zone_action(dev_id, props):
+    def validate_update_occupancy_zone_action(self, dev_id, props):
         errors = indigo.Dict()
         if dev_id not in indigo.devices:
             errors["device"] = "'deviceId' must be included and must represent an existing device"
 
         try:
-            if "onDelayValue" not in props:
-                errors["onDelayValue"] = "'onDelayValue' must be a positive integer"
-            elif int(props["onDelayValue"]) <= 0:
+            if int(props["onDelayValue"]) < 0:
                 errors["onDelayValue"] = f"{props['onDelayValue']} must be a positive integer"
-        except ValueError:
-            errors["onDelayValue"] = f"{props['onDelayValue']} must be a positive integer"
+        except ValueError as err:
+            errors["onDelayValue"] = f"ValueError: {props['onDelayValue']}: {err}"
 
         try:
-            if "offDelayValue" not in props:
-                errors["offDelayValue"] = "'offDelayValue' must be a positive integer"
-            elif int(props["offDelayValue"]) <= 0:
+           if int(props["offDelayValue"]) < 0:
                 errors["offDelayValue"] = f"{props['offDelayValue']} must be a positive integer"
-        except ValueError:
-            errors["offDelayValue"] = f"{props['offDelayValue']} must be a positive integer"
+        except ValueError as err:
+            errors["offDelayValue"] = f"ValueError: {props['offDelayValue']}: {err}"
 
-        try:
-            if "forceOffValue" not in props:
-                errors["forceOffValue"] = "'forceOffValue' property is missing"
-            elif int(props["forceOffValue"]) < 0:
-                errors["offDelayValue"] = f"{props['offDelayValue']} cannot be negative"
-        except ValueError:
-            errors["offDelayValue"] = f"{props['offDelayValue']} cannot be negative"
+        if props.get("forceOffValue", None):
+            try:
+                if int(props["forceOffValue"]) < 0:
+                    errors["forceOffValue"] = f"{props['forceOffValue']} must be a positive integer"
+            except ValueError as err:
+                errors["forceOffValue"] = f"ValueError: {props['forceOffValue']}: {err}"
 
+        self.logger.debug(f"validate_update_occupancy_zone_action, errors={errors}")
         return (not bool(errors)), errors  # bool(errors) will return False if empty, True if not)
 
     def cancelTimer(self, action, device,  caller_waiting_for_result=None):
@@ -413,40 +407,40 @@ class Plugin(indigo.PluginBase):
                 device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
         return reply_dict
 
-    def updateActivityZone(self, action, device, caller_waiting_for_result=None):
-        self.logger.debug(f"updateActivityZone, zoneDevice={device.id}, pluginAction={action}")
+    def updateActivityZone(self, plugin_action, zone_device, caller_waiting_for_result=None):
+        self.logger.debug(f"updateActivityZone, zoneDevice={zone_device.id}, pluginAction={plugin_action}")
         reply_dict = indigo.Dict()  # This will hold the status and errors or device details in the appropriate format
-        is_valid, errors = self.validate_update_activity_zone_action(device.id, action.props)
+        is_valid, errors = self.validate_update_activity_zone_action(zone_device.id, plugin_action.props)
         reply_dict["status"] = is_valid
         if not is_valid:
             self.logger.error(f"Couldn't complete 'updateActivityZone' action because of errors:\n{dict(errors)}")
             reply_dict["errors"] = errors
-        elif device.id not in indigo.devices:
-            self.logger.warning(f"{device.name}: updateActivityZone, device not found")
-            reply_dict["errors"] = {"forceOffValue": f"updateActivityZone, device not found: {device.id}"}
+        elif zone_device.id not in indigo.devices:
+            self.logger.warning(f"{zone_device.name}: updateActivityZone, device not found")
+            reply_dict["errors"] = {"forceOffValue": f"updateActivityZone, device not found: {zone_device.id}"}
         else:
-            props = device.pluginProps
-            props["activityCount"] = action.props["activityCount"]
-            props["activityWindow"] = action.props["activityWindow"]
-            device.replacePluginPropsOnServer(props)
+            props = zone_device.pluginProps
+            props["activityCount"] = plugin_action.props["activityCount"]
+            props["activityWindow"] = plugin_action.props["activityWindow"]
+            zone_device.replacePluginPropsOnServer(props)
 
-    def updateOccupancyZone(self, pluginAction, zoneDevice, caller_waiting_for_result=None):
-        self.logger.debug(f"updateOccupancyZone, zoneDevice={zoneDevice.id}, pluginAction={pluginAction}")
+    def updateOccupancyZone(self, plugin_action, zone_device, caller_waiting_for_result=None):
+        self.logger.debug(f"updateOccupancyZone, zoneDevice={zone_device.id}, pluginAction={plugin_action}")
         reply_dict = indigo.Dict()  # This will hold the status and errors or device details in the appropriate format
-        is_valid, errors = self.validate_update_occupancy_zone_action(device.id, action.props)
+        is_valid, errors = self.validate_update_occupancy_zone_action(zone_device.id, plugin_action.props)
         reply_dict["status"] = is_valid
         if not is_valid:
             self.logger.error(f"Couldn't complete 'updateOccupancyZone' action because of errors:\n{dict(errors)}")
             reply_dict["errors"] = errors
-        elif device.id not in indigo.devices:
+        elif zone_device.id not in indigo.devices:
             self.logger.warning(f"{device.name}: updateOccupancyZone, device not found")
             reply_dict["errors"] = {"forceOffValue": f"updateOccupancyZone, device not found: {device.id}"}
         else:
-            props = zoneDevice.pluginProps
-            props["onDelayValue"] = pluginAction.props["onDelayValue"]
-            props["offDelayValue"] = pluginAction.props["offDelayValue"]
-            props["forceOffValue"] = pluginAction.props["forceOffValue"]
-            zoneDevice.replacePluginPropsOnServer(props)
+            props = zone_device.pluginProps
+            props["onDelayValue"] = plugin_action.props["onDelayValue"]
+            props["offDelayValue"] = plugin_action.props["offDelayValue"]
+            props["forceOffValue"] = plugin_action.props["forceOffValue"]
+            zone_device.replacePluginPropsOnServer(props)
 
     ########################################
     # ConfigUI methods

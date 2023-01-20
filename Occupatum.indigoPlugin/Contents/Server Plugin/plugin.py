@@ -288,26 +288,26 @@ class Plugin(indigo.PluginBase):
     # Action methods
     ########################################
 
-    def getActionConfigUiValues(self, actionProps, typeId, devId):
-        self.logger.debug(f"getActionConfigUiValues, actionProps = {actionProps}, typeId = {typeId}, devId = {devId}")
-        device = indigo.devices[devId]
-        if typeId == "cancelTimer":
+    def getActionConfigUiValues(self, action_props, type_id, dev_id):
+        self.logger.debug(f"getActionConfigUiValues, actionProps = {action_props}, type_id = {type_id}, dev_id = {dev_id}")
+        device = indigo.devices[dev_id]
+        if type_id == "cancelTimer":
             pass
 
-        elif typeId == "updateActivityZone":
-            if 'activityCount' not in actionProps:
-                actionProps["activityCount"] = device.pluginProps['activityCount']
-            if 'activityWindow' not in actionProps:
-                actionProps["activityWindow"] = device.pluginProps['activityWindow']
+        elif type_id == "updateActivityZone":
+            if 'activityCount' not in action_props:
+                action_props["activityCount"] = device.pluginProps['activityCount']
+            if 'activityWindow' not in action_props:
+                action_props["activityWindow"] = device.pluginProps['activityWindow']
 
-        elif typeId == "updateOccupancyZone":
-            if 'onDelayValue' not in actionProps:
-                actionProps["onDelayValue"] = device.pluginProps['onDelayValue']
-            if 'offDelayValue' not in actionProps:
-                actionProps["offDelayValue"] = device.pluginProps['offDelayValue']
-            if 'forceOffValue' not in actionProps:
-                actionProps["forceOffValue"] = device.pluginProps['forceOffValue']
-        return actionProps
+        elif type_id == "updateOccupancyZone":
+            if 'onDelayValue' not in action_props:
+                action_props["onDelayValue"] = device.pluginProps['onDelayValue']
+            if 'offDelayValue' not in action_props:
+                action_props["offDelayValue"] = device.pluginProps['offDelayValue']
+            if 'forceOffValue' not in action_props:
+                action_props["forceOffValue"] = device.pluginProps['forceOffValue']
+        return action_props
 
     def validateActionConfigUi(self, values_dict, type_id, dev_id):
         self.logger.debug(f"validateActionConfigUi, values_dict = {values_dict}, type_id = {type_id}, dev_id = {dev_id}")
@@ -315,10 +315,10 @@ class Plugin(indigo.PluginBase):
         if type_id == "cancelTimer":
             is_valid, errors = self.validate_cancel_timer_action(dev_id, values_dict)
             return is_valid, values_dict, errors
-        elif typeId == "updateActivityZone":
+        elif type_id == "updateActivityZone":
             is_valid, errors = self.validate_update_activity_zone_action(dev_id, values_dict)
             return is_valid, values_dict, errors
-        elif typeId == "updateOccupancyZone":
+        elif type_id == "updateOccupancyZone":
             is_valid, errors = self.validate_update_occupancy_zone_action(dev_id, values_dict)
             return is_valid, values_dict, errors
         else:

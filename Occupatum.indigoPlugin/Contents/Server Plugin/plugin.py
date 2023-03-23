@@ -337,6 +337,14 @@ class Plugin(indigo.PluginBase):
         self.logger.debug(f"validate_update_occupancy_zone_action, errors={errors}")
         return (not bool(errors)), errors  # bool(errors) will return False if empty, True if not)
 
+    def validate_force_zone_off_action(self, dev_id):
+        errors = indigo.Dict()
+        if dev_id not in indigo.devices:
+            errors["device"] = "'deviceId' must be included and must represent an existing device"
+
+        self.logger.debug(f"validate_force_zone_off_action, errors={errors}")
+        return (not bool(errors)), errors  # bool(errors) will return False if empty, True if not)
+
     def validate_update_activity_zone_action(self, dev_id, props):
         errors = indigo.Dict()
         if dev_id not in indigo.devices:
@@ -384,7 +392,7 @@ class Plugin(indigo.PluginBase):
         self.logger.debug(f"validate_update_occupancy_zone_action, errors={errors}")
         return (not bool(errors)), errors  # bool(errors) will return False if empty, True if not)
 
-    def cancelTimer(self, action, device,  caller_waiting_for_result=None):
+    def cancelTimer(self, action, device, caller_waiting_for_result=None):
         self.logger.debug(f"cancelTimer, zoneDevice={device.id}, pluginAction={action}")
         reply_dict = indigo.Dict()  # This will hold the status and errors or device details in the appropriate format
         is_valid, errors = self.validate_cancel_timer_action(device.id, action.props)
@@ -405,6 +413,19 @@ class Plugin(indigo.PluginBase):
             elif state == "off":
                 device.updateStateOnServer(key='onOffState', value=False, uiValue="Off")
                 device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
+        return reply_dict
+
+    def forceZoneOff(self, action, device, caller_waiting_for_result=None):
+        self.logger.debug(f"forceZoneOff, zoneDevice={device.id}")
+        reply_dict = indigo.Dict()  # This will hold the status and errors or device details in the appropriate format
+        is_valid, errors = self.validate_force_zone_off_action(device.id)
+        reply_dict["status"] = is_valid
+        if not is_valid:
+            self.logger.error(f"Couldn't complete 'forceZoneOff' action because of errors:\n{dict(errors)}")
+            reply_dict["errors"] = errors
+        else:
+            device.updateStateOnServer(key='onOffState', value=False, uiValue="Off")
+            device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
         return reply_dict
 
     def updateActivityZone(self, plugin_action, zone_device, caller_waiting_for_result=None):

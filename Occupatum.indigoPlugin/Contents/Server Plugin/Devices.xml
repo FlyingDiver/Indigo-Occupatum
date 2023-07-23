@@ -30,13 +30,13 @@
             <Field id="space2" type="label"><Label/></Field>
             <Field id="separator1" type="separator"/>
             <Field id="space3" type="label"><Label/></Field>
-            <Field id="activityWindow" type="textfield">
+            <Field id="activityWindow" type="textfield" defaultValue="">
                 <Label>Time Window for activations (seconds):</Label>
             </Field>
             <Field id="activityWindow_help" type="label" fontSize="mini" alignWithControl="true">
                 <Label>Lookback Period for activations.  Only sensor activations during this period will count.</Label>
             </Field>
-            <Field id="activityCount" type="textfield">
+            <Field id="activityCount" type="textfield" defaultValue="">
                 <Label>Activations required:</Label>
             </Field>
             <Field id="activityCount_help" type="label" fontSize="mini" alignWithControl="true">

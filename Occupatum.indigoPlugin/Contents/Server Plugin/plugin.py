@@ -377,7 +377,7 @@ class Plugin(indigo.PluginBase):
             errors["onDelayValue"] = f"ValueError: {props['onDelayValue']}: {err}"
 
         try:
-           if int(props["offDelayValue"]) < 0:
+            if int(props["offDelayValue"]) < 0:
                 errors["offDelayValue"] = f"{props['offDelayValue']} must be a positive integer"
         except ValueError as err:
             errors["offDelayValue"] = f"ValueError: {props['offDelayValue']}: {err}"
@@ -469,7 +469,7 @@ class Plugin(indigo.PluginBase):
 
     def closedPrefsConfigUi(self, valuesDict, userCancelled):
         if not userCancelled:
-            self.logLevel = int(valuesDict.get(u"logLevel", logging.INFO))
+            self.logLevel = int(valuesDict.get("logLevel", logging.INFO))
             self.indigo_log_handler.setLevel(self.logLevel)
             self.logger.debug(f"logLevel = {self.logLevel}")
 
@@ -478,7 +478,7 @@ class Plugin(indigo.PluginBase):
     ########################################
 
     def validateDeviceConfigUi(self, valuesDict, typeId, devId):
-        self.logger.debug("validateDeviceConfigUi, devId={}, typeId={}, valuesDict = {}".format(devId, typeId, valuesDict))
+        self.logger.debug(f"validateDeviceConfigUi, devId={devId}, typeId={typeId}, valuesDict = {valuesDict}")
         errorMsgDict = indigo.Dict()
 
         sensorDevices = valuesDict.get('sensorDevices', None)
@@ -494,31 +494,30 @@ class Plugin(indigo.PluginBase):
 
         if typeId == 'area':
 
-            if valuesDict.get("onSensorsOnOff", None) == "change" and \
-                    (valuesDict.get("forceOffValue", "") == "" or (valuesDict.get("forceOffValue", "0")) == "0" or not (
-                            valuesDict.get("forceOffValue", "")).isdigit()):
-                self.logger.error("Configuration Error: Force Off valid number required for 'Either (Any Change)' sensors")
-                errorMsgDict["forceOffValue"] = "Force Off valid number required for 'Either (Any Change)' sensors"
-                return False, valuesDict, errorMsgDict
+            if valuesDict.get("onSensorsOnOff", None) == "change":
+                if not str(valuesDict.get("forceOffValue", "").isdigit()):
+                    self.logger.error("Configuration Error: Force Off valid number required for 'Either (Any Change)' sensors")
+                    errorMsgDict["forceOffValue"] = "Force Off valid number required for 'Either (Any Change)' sensors"
+                    return False, valuesDict, errorMsgDict
 
-            if not (valuesDict.get("onDelayValue", "")).isdigit():
+            if not str(valuesDict.get("onDelayValue", "")).isdigit():
                 self.logger.error("Configuration Error: A number for time in seconds is required")
                 errorMsgDict["onDelayValue"] = "Please enter a valid number"
                 return False, valuesDict, errorMsgDict
 
-            if not (valuesDict.get("offDelayValue", "")).isdigit():
+            if not str(valuesDict.get("offDelayValue", "")).isdigit():
                 self.logger.error("Configuration Error: A number for time in seconds is required")
                 errorMsgDict["offDelayValue"] = "Please enter a valid number"
                 return False, valuesDict, errorMsgDict
 
         elif typeId == 'activityZone':
 
-            if not (valuesDict.get("activityWindow", "")).isdigit():
+            if not str(valuesDict.get("activityWindow", "")).isdigit():
                 self.logger.error("Configuration Error: A number for time in seconds is required")
                 errorMsgDict["activityWindow"] = "Please enter a valid number"
                 return False, valuesDict, errorMsgDict
 
-            if not (valuesDict.get("activityCount", "")).isdigit():
+            if not str(valuesDict.get("activityCount", "")).isdigit():
                 self.logger.error("Configuration Error: A number for time in seconds is required")
                 errorMsgDict["activityCount"] = "Please enter a valid number"
                 return False, valuesDict, errorMsgDict
@@ -585,7 +584,7 @@ class Plugin(indigo.PluginBase):
                 selectedDevicesString += "," + str(deviceId)
 
             valuesDict["sensorDevices"] = selectedDevicesString
-            self.logger.debug("valuesDict = {}".format(valuesDict))
+            self.logger.debug(f"valuesDict = {valuesDict}")
 
             if "sensorDeviceList" in valuesDict:
                 del valuesDict["sensorDeviceList"]

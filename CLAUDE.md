@@ -7,17 +7,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Occupatum is a plugin for the [Indigo](https://www.indigodomo.com) home automation server. It creates virtual
 occupancy sensor devices whose on/off state is derived from the states of other Indigo sensor devices.
 
-There is no build step, no dependency manifest, and no test suite. The repo *is* the deliverable: the
-`Occupatum.indigoPlugin/` directory is a macOS bundle that Indigo loads directly.
+There is no build step and no dependency manifest. The repo *is* the deliverable: the
+`Occupatum.indigoPlugin/` directory is a macOS bundle that Indigo loads directly. `tests/` sits outside the
+bundle deliberately — it must never end up inside it, or it ships in the release zip.
 
 ## Development workflow
 
 - Indigo runs the plugin under its own embedded Python 3 interpreter, and `import indigo` only resolves inside
-  that runtime, so the plugin cannot run as-is outside the Indigo server. It *can* be exercised against a stub
-  `indigo` module (a fake `devices` dict, `Dict`, `kStateImageSel`, and a `PluginBase` whose device objects
-  record `updateStateOnServer` calls); that is the only way to test this code without a server, and it is how
-  the timer races and restart side effects in `deviceStartComm`/`deviceStopComm` were reproduced. There is no
-  such harness checked in yet.
+  that runtime, so the plugin cannot run as-is outside the Indigo server. It *can* be exercised against the
+  stub `indigo` module in `tests/`: `python3 tests/test_plugin.py`, no dependencies, non-zero exit on failure.
+  Run it before any release. It covers what is painful to test on a live server — device deletion, the
+  props-edit restart, the two-thread timer races, startup against a stale config.
+- The stub encodes assumptions about Indigo, chiefly that `replacePluginPropsOnServer` synchronously stops and
+  restarts the device and that `deviceStopComm` sees the post-edit props. A pass is evidence, not proof: it
+  cannot exercise the XML↔Python binding at all, and anything depending on those two behaviours still needs a
+  real server before release. When adding a check, confirm it fails against the code before the fix — a green
+  suite that was never red proves nothing.
 - To test a change: install the bundle into Indigo (double-click `Occupatum.indigoPlugin` in Finder, or copy it
   to `/Library/Application Support/Perceptive Automation/Indigo <ver>/Plugins/`), then reload the plugin from
   Indigo's Plugins menu. Verify via the Indigo Event Log and the plugin's own log file.

@@ -12,8 +12,12 @@ There is no build step, no dependency manifest, and no test suite. The repo *is*
 
 ## Development workflow
 
-- Indigo runs the plugin under its own embedded Python 3 interpreter. `import indigo` only resolves inside
-  that runtime, so the code cannot be executed, imported, or unit-tested outside the Indigo server.
+- Indigo runs the plugin under its own embedded Python 3 interpreter, and `import indigo` only resolves inside
+  that runtime, so the plugin cannot run as-is outside the Indigo server. It *can* be exercised against a stub
+  `indigo` module (a fake `devices` dict, `Dict`, `kStateImageSel`, and a `PluginBase` whose device objects
+  record `updateStateOnServer` calls); that is the only way to test this code without a server, and it is how
+  the timer races and restart side effects in `deviceStartComm`/`deviceStopComm` were reproduced. There is no
+  such harness checked in yet.
 - To test a change: install the bundle into Indigo (double-click `Occupatum.indigoPlugin` in Finder, or copy it
   to `/Library/Application Support/Perceptive Automation/Indigo <ver>/Plugins/`), then reload the plugin from
   Indigo's Plugins menu. Verify via the Indigo Event Log and the plugin's own log file.
@@ -40,8 +44,10 @@ the only linkage, and a mismatch fails silently at runtime rather than at load.
 ### The two device types
 
 Both are Indigo `sensor` devices with `SupportsOnState`, and both store their member sensors in a single hidden
-`sensorDevices` prop as a **comma-separated string of Indigo device IDs** (not a list). Every read of it does
-`[int(x) for x in props.get("sensorDevices","").split(",")]`.
+`sensorDevices` prop as a **comma-separated string of Indigo device IDs** (not a list). Never parse it inline:
+`sensorIDsForZone` is the only reader, `saveSensorsForZone` the only writer, and `reconcileZones` (called once
+from `startup`, before any device starts) is the only place that prunes IDs that no longer resolve. Pruning
+anywhere else either restarts a device in the middle of starting it or turns a getter into a destructive write.
 
 - **`area` ("Occupancy Zone")** — boolean combination of member sensors. `onAnyAll` (all/any) × `onSensorsOnOff`
   (on/off/change) decides occupancy, then `onDelayValue` / `offDelayValue` delay the transition and an optional
@@ -57,8 +63,17 @@ Both are Indigo `sensor` devices with `SupportsOnState`, and both store their me
 - `delayTimers` — zone device ID → `(deadline, occupied)`; `forceTimers` — zone device ID → `deadline`
 - `triggers` — trigger ID → trigger
 
-`deviceStartComm` populates `zoneList`/`watchList`; `deviceStopComm` tears them down. Several of these use bare
-`assert` for invariants, so a stale entry surfaces as an AssertionError in the log at device start/stop.
+`deviceStartComm` populates `zoneList`/`watchList` via `addZoneToWatchList`; `deviceStopComm` tears them down
+via `removeZoneFromWatchList`, and `forgetZone` handles a zone device being deleted outright. Keep those two
+halves symmetric — unregister from the `zoneList` entry that registration used, never from a re-read of the
+props, because a props edit is itself what triggers the stop.
+
+`zoneList` mirrors the `sensorDevices` prop exactly, including IDs that no longer resolve; filtering to live
+devices happens at use time in `liveSensors`. That is what makes `zoneList` safe to write back to the props.
+
+Both timer dicts are touched from two threads — `runConcurrentThread` and the main thread's Indigo callbacks —
+so always `.pop(id, None)` or `.get(id, None)` rather than `in` followed by a subscript. `runConcurrentThread`
+catches only `StopThread`, so a lost race there raises a `KeyError` that kills the timer thread for every zone.
 
 ### Event flow
 

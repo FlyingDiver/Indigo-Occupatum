@@ -35,7 +35,7 @@ All logic lives in one file: `Occupatum.indigoPlugin/Contents/Server Plugin/plug
 |---|---|---|
 | `Devices.xml` | the two device types + their ConfigUI + custom states | `sensorDevices`, `sensorDeviceList`, `addDevice`, `deleteDevices` callbacks |
 | `Actions.xml` | plugin actions | `cancelTimer`, `forceZoneOff`, `updateActivityZone`, `updateOccupancyZone` |
-| `Events.xml` | trigger types `zoneOccupied` / `zoneUnoccupied` | dispatched by `checkTriggers` |
+| `Events.xml` | trigger types `zoneOccupied` / `zoneUnoccupied` | dispatched by `check_triggers` |
 | `PluginConfig.xml` | plugin prefs (log level) | `closedPrefsConfigUi` |
 
 Adding a UI element means editing XML *and* the matching Python callback; the `id`/`CallbackMethod` strings are
@@ -45,7 +45,7 @@ the only linkage, and a mismatch fails silently at runtime rather than at load.
 
 Both are Indigo `sensor` devices with `SupportsOnState`, and both store their member sensors in a single hidden
 `sensorDevices` prop as a **comma-separated string of Indigo device IDs** (not a list). Never parse it inline:
-`sensorIDsForZone` is the only reader, `saveSensorsForZone` the only writer, and `reconcileZones` (called once
+`sensor_ids_for_zone` is the only reader, `save_sensors_for_zone` the only writer, and `reconcile_zones` (called once
 from `startup`, before any device starts) is the only place that prunes IDs that no longer resolve. Pruning
 anywhere else either restarts a device in the middle of starting it or turns a getter into a destructive write.
 
@@ -63,13 +63,13 @@ anywhere else either restarts a device in the middle of starting it or turns a g
 - `delayTimers` — zone device ID → `(deadline, occupied)`; `forceTimers` — zone device ID → `deadline`
 - `triggers` — trigger ID → trigger
 
-`deviceStartComm` populates `zoneList`/`watchList` via `addZoneToWatchList`; `deviceStopComm` tears them down
-via `removeZoneFromWatchList`, and `forgetZone` handles a zone device being deleted outright. Keep those two
+`deviceStartComm` populates `zoneList`/`watchList` via `add_zone_to_watch_list`; `deviceStopComm` tears them down
+via `remove_zone_from_watch_list`, and `forget_zone` handles a zone device being deleted outright. Keep those two
 halves symmetric — unregister from the `zoneList` entry that registration used, never from a re-read of the
 props, because a props edit is itself what triggers the stop.
 
 `zoneList` mirrors the `sensorDevices` prop exactly, including IDs that no longer resolve; filtering to live
-devices happens at use time in `liveSensors`. That is what makes `zoneList` safe to write back to the props.
+devices happens at use time in `live_sensors`. That is what makes `zoneList` safe to write back to the props.
 
 Both timer dicts are touched from two threads — `runConcurrentThread` and the main thread's Indigo callbacks —
 so always `.pop(id, None)` or `.get(id, None)` rather than `in` followed by a subscript. `runConcurrentThread`
@@ -79,13 +79,13 @@ catches only `StopThread`, so a lost race there raises a `KeyError` that kills t
 
 1. `startup()` calls `indigo.devices.subscribeToChanges()`.
 2. `deviceUpdated` fires for *every* Indigo device change; it filters to devices in `watchList` whose `onState`
-   actually changed, then calls `checkSensors(zone, newState)` for each dependent zone.
-3. `checkSensors` computes the new occupancy and, for `area` zones, arms a delay timer rather than changing the
+   actually changed, then calls `check_sensors(zone, newState)` for each dependent zone.
+3. `check_sensors` computes the new occupancy and, for `area` zones, arms a delay timer rather than changing the
    state immediately. For `activityZone` it appends a timestamp and updates state directly.
 4. `runConcurrentThread` ticks once per second: counts down and displays `delay_timer` / `force_off_timer`,
-   expires them via `delayTimerComplete` / `forceOffTimerComplete`, and pops timestamps that fell out of the
-   activity window (re-calling `checkSensors`).
-5. State transitions call `checkTriggers`, which executes matching `zoneOccupied` / `zoneUnoccupied` triggers.
+   expires them via `delay_timer_complete` / `force_off_timer_complete`, and pops timestamps that fell out of the
+   activity window (re-calling `check_sensors`).
+5. State transitions call `check_triggers`, which executes matching `zoneOccupied` / `zoneUnoccupied` triggers.
 
 Note the per-second `updateStateOnServer` calls on the timer states — `deviceStartComm` sets
 `sqlLoggerIgnoreStates = "delay_timer,force_off_timer"` in sharedProps so they don't flood the SQL logger.
@@ -93,7 +93,7 @@ Note the per-second `updateStateOnServer` calls on the timer states — `deviceS
 ### Zones as sensors for other zones
 
 Zone devices are themselves `indigo.sensor` devices, so a zone can be a member sensor of another zone.
-`isRecursive` walks the membership graph in `validateDeviceConfigUi` to reject cycles.
+`is_recursive` walks the membership graph in `validateDeviceConfigUi` to reject cycles.
 
 ### Action validation convention
 

@@ -55,21 +55,48 @@ class Plugin(indigo.PluginBase):
                 self.logger.warning(f"{device.name}: ignoring invalid sensor device ID '{sensorID}'")
         return sensorIDs
 
+    def saveSensorsForZone(self, zoneDevice, sensorIDs):
+        # Rewrite the sensorDevices prop.  Only the owning plugin can do this - the config dialog can't show an
+        # unresolvable ID, so there's nothing for the user to select and delete, and Indigo blocks scripts from
+        # touching pluginProps.  Replacing the props restarts the device, which rebuilds zoneList/watchList and
+        # re-evaluates the zone state.
+        if not sensorIDs:
+            self.logger.warning(f"{zoneDevice.name}: zone no longer has any sensor devices, edit the zone to add one")
+        props = zoneDevice.pluginProps
+        props["sensorDevices"] = ",".join(str(x) for x in sensorIDs)
+        zoneDevice.replacePluginPropsOnServer(props)
+
     def liveSensorsForZone(self, device):
-        # Same as sensorIDsForZone, but drops IDs that no longer exist in Indigo.  Deleting a sensor while the
-        # plugin is stopped leaves a stale ID in the props, so zones self-heal on the next start.
+        # Same as sensorIDsForZone, but drops IDs that no longer exist in Indigo.  A sensor deleted while the
+        # plugin was stopped never went through deviceDeleted, so prune it from the saved props here too -
+        # otherwise the stale ID sticks around and warns on every single start.
         sensorIDs = list()
+        dropped = list()
         for sensorID in self.sensorIDsForZone(device):
             if sensorID in indigo.devices:
                 sensorIDs.append(sensorID)
             else:
-                self.logger.warning(f"{device.name}: sensor device {sensorID} no longer exists, ignoring it")
+                dropped.append(sensorID)
+
+        if dropped:
+            self.logger.warning(f"{device.name}: sensor device(s) {dropped} no longer exist, removing them from the zone")
+            self.saveSensorsForZone(device, sensorIDs)  # restarts the device, one extra cycle then it's quiet
+
         return sensorIDs
 
+    def addZoneToWatchList(self, device, sensorsInZone):
+        # Register the zone against each of its sensors.  Appending only if absent keeps a second deviceStartComm
+        # without a matching deviceStopComm from double-registering the zone, which would run checkSensors twice
+        # per sensor change and leave an entry deviceStopComm can never fully remove.
+        for sensor in sensorsInZone:
+            if sensor not in self.watchList:
+                self.watchList[sensor] = list()
+            if device.id not in self.watchList[sensor]:
+                self.watchList[sensor].append(device.id)
+        self.logger.debug(f"{device.name}: watchList updated: {self.watchList}")
+
     def removeSensorFromZone(self, zoneID, sensorID):
-        # Drop a deleted sensor from a zone, both in memory and in the saved props.  Only the plugin can rewrite
-        # its own pluginProps, so this is the only place the stale ID can be cleared - the config dialog can't
-        # show it, and scripts aren't allowed to touch pluginProps.
+        # Drop a deleted sensor from a zone, both in memory and in the saved props.
         if zoneID in self.zoneList and sensorID in self.zoneList[zoneID]:
             self.zoneList[zoneID].remove(sensorID)
 
@@ -77,14 +104,16 @@ class Plugin(indigo.PluginBase):
             return
 
         zoneDevice = indigo.devices[zoneID]
-        remaining = [x for x in self.sensorIDsForZone(zoneDevice) if x != sensorID]
-        props = zoneDevice.pluginProps
-        props["sensorDevices"] = ",".join(str(x) for x in remaining)
+        current = self.sensorIDsForZone(zoneDevice)
+        if sensorID not in current:
+            # stale watchList entry, the props don't reference this sensor.  Don't restart the device for nothing;
+            # for an activityZone a needless restart would discard the accumulated activity time hacks.
+            self.logger.debug(f"{zoneDevice.name}: sensor device {sensorID} not in zone props, nothing to remove")
+            return
+
+        remaining = [x for x in current if x != sensorID]
         self.logger.warning(f"{zoneDevice.name}: removed deleted sensor device {sensorID} from zone, {len(remaining)} sensor(s) left")
-        if not remaining:
-            self.logger.warning(f"{zoneDevice.name}: zone no longer has any sensor devices, edit the zone to add one")
-        # replacing the props restarts the device, which rebuilds zoneList/watchList and re-evaluates the state
-        zoneDevice.replacePluginPropsOnServer(props)
+        self.saveSensorsForZone(zoneDevice, remaining)
 
     def deviceDeleted(self, delDevice):
         indigo.PluginBase.deviceDeleted(self, delDevice)
@@ -156,13 +185,7 @@ class Plugin(indigo.PluginBase):
             sensorsInZone = self.liveSensorsForZone(device)
             self.logger.debug(f"{device.name}: Zone {device.id} uses sensor devices: {sensorsInZone}")
 
-            for sensor in sensorsInZone:
-                if sensor not in self.watchList:
-                    self.watchList[sensor] = list()
-                self.watchList[sensor].append(device.id)
-
-            self.logger.debug(f"{device.name}: watchList updated: {self.watchList}")
-
+            self.addZoneToWatchList(device, sensorsInZone)
             self.zoneList[device.id] = sensorsInZone
 
         elif device.deviceTypeId == 'activityZone':
@@ -173,13 +196,7 @@ class Plugin(indigo.PluginBase):
             sensorsInZone = self.liveSensorsForZone(device)
             self.logger.debug(f"{device.name}: Zone {device.id} uses sensor devices: {sensorsInZone}")
 
-            for sensor in sensorsInZone:
-                if sensor not in self.watchList:
-                    self.watchList[sensor] = list()
-                self.watchList[sensor].append(device.id)
-
-            self.logger.debug(f"{device.name}: watchList updated: {self.watchList}")
-
+            self.addZoneToWatchList(device, sensorsInZone)
             self.zoneList[device.id] = sensorsInZone  # list of indigo device IDs that are sensors for this zone
             self.activityZoneList[device.id] = []  # list of time hacks that sensor on updates occurred
 
@@ -220,8 +237,14 @@ class Plugin(indigo.PluginBase):
 
             sensors = [x for x in self.zoneList.get(zoneDevice.id, []) if x in indigo.devices]
             if not sensors:
-                # all([]) is True, so an 'all' zone would report occupied forever.  Leave the state alone instead.
+                # all([]) is True, so an 'all' zone would report occupied forever.  Leave the state alone instead,
+                # and drop any armed timers - otherwise delayTimerComplete would fire a second later and set the
+                # zone from sensors that no longer exist.
                 self.logger.warning(f"{zoneDevice.name}: checkSensors, no valid sensor devices, leaving zone state unchanged")
+                if self.delayTimers.pop(zoneDevice.id, None):
+                    zoneDevice.updateStateOnServer(key='delay_timer', value=0.0)
+                if self.forceTimers.pop(zoneDevice.id, None):
+                    zoneDevice.updateStateOnServer(key='force_off_timer', value=0.0)
                 return
 
             onSensorsOnOff = zoneDevice.pluginProps.get("onSensorsOnOff", "on")

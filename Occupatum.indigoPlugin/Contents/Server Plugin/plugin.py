@@ -6,7 +6,6 @@ import logging
 import indigo
 import time
 
-
 ################################################################################
 class Plugin(indigo.PluginBase):
 
@@ -47,6 +46,8 @@ class Plugin(indigo.PluginBase):
         if delDevice.id in self.watchList:
             self.logger.debug(f"Watched Device deleted: {delDevice.name}")
             del self.watchList[delDevice.id]
+
+            # Need to remove this sensor from any devices that reference it
 
     def deviceUpdated(self, oldDevice, newDevice):
         indigo.PluginBase.deviceUpdated(self, oldDevice, newDevice)
@@ -227,7 +228,7 @@ class Plugin(indigo.PluginBase):
         if device.id in self.delayTimers:
             del self.delayTimers[device.id]
         else:
-            self.logger.warning(f"{zoneDevice.name}: delayTimerComplete, no timer found")
+            self.logger.warning(f"{device.name}: delayTimerComplete, no timer found")
 
         previous = device.onState
 
@@ -243,7 +244,7 @@ class Plugin(indigo.PluginBase):
         if device.id in self.forceTimers:
             del self.forceTimers[device.id]
         else:
-            self.logger.warning(f"{zoneDevice.name}: forceOffTimerComplete, no timer found")
+            self.logger.warning(f"{device.name}: forceOffTimerComplete, no timer found")
 
         previous = device.onState
 
@@ -454,8 +455,8 @@ class Plugin(indigo.PluginBase):
             self.logger.error(f"Couldn't complete 'updateOccupancyZone' action because of errors:\n{dict(errors)}")
             reply_dict["errors"] = errors
         elif zone_device.id not in indigo.devices:
-            self.logger.warning(f"{device.name}: updateOccupancyZone, device not found")
-            reply_dict["errors"] = {"forceOffValue": f"updateOccupancyZone, device not found: {device.id}"}
+            self.logger.warning(f"{zone_device.name}: updateOccupancyZone, device not found")
+            reply_dict["errors"] = {"forceOffValue": f"updateOccupancyZone, device not found: {zone_device.id}"}
         else:
             props = zone_device.pluginProps
             props["onDelayValue"] = plugin_action.props["onDelayValue"]
